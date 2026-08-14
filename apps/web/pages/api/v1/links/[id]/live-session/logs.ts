@@ -23,17 +23,8 @@ export default async function handler(
     return res.status(404).json({ response: "No live session." });
   }
 
-  try {
-    const buffer = await session.activePage.screenshot({
-      type: "jpeg",
-      quality: 60,
-    });
-    res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Cache-Control", "no-store");
-    return res.status(200).send(buffer);
-  } catch (error: any) {
-    return res.status(502).json({
-      response: error?.message || "Failed to capture the live page.",
-    });
-  }
+  const since = Number(req.query.since) || 0;
+  const logs = session.logs.filter((log) => log.id > since);
+
+  return res.status(200).json({ response: { logs } });
 }

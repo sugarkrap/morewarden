@@ -7,6 +7,8 @@ type Props = {
   onSelectorPicked: (selector: string) => void;
 };
 
+type Rect = { x: number; y: number; width: number; height: number };
+
 const SCREENSHOT_INTERVAL_MS = 400;
 const MOVE_THROTTLE_MS = 100;
 
@@ -16,11 +18,13 @@ export default function LiveScreenPreview({
   onSelectorPicked,
 }: Props) {
   const { t } = useTranslation();
+  const containerRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const objectUrlRef = useRef<string | null>(null);
   const lastMoveRef = useRef(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [overlay, setOverlay] = useState<Rect | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,11 +74,16 @@ export default function LiveScreenPreview({
     };
   }, [ready, linkId]);
 
+  useEffect(() => {
+    if (!picking) setOverlay(null);
+  }, [picking]);
+
   const relativePosition = (e: React.MouseEvent<HTMLImageElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     return {
       x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
       y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+      displayRect: rect,
     };
   };
 
@@ -83,7 +92,33 @@ export default function LiveScreenPreview({
     if (now - lastMoveRef.current < MOVE_THROTTLE_MS) return;
     lastMoveRef.current = now;
 
-    const { x, y } = relativePosition(e);
+    const { x, y, displayRect } = relativePosition(e);
+
+    if (picking) {
+      fetch(`/api/v1/links/${linkId}/live-session/hover-rect`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x, y }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          const rect = data.response?.rect;
+          const viewport = data.response?.viewport;
+          if (!rect || !viewport) return setOverlay(null);
+
+          const scaleX = displayRect.width / viewport.width;
+          const scaleY = displayRect.height / viewport.height;
+          setOverlay({
+            x: rect.x * scaleX,
+            y: rect.y * scaleY,
+            width: rect.width * scaleX,
+            height: rect.height * scaleY,
+          });
+        })
+        .catch(() => {});
+      return;
+    }
+
     fetch(`/api/v1/links/${linkId}/live-session/interact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -145,15 +180,28 @@ export default function LiveScreenPreview({
   }
 
   return (
-    <img
-      ref={imgRef}
-      onMouseMove={handleMouseMove}
-      onClick={handleClick}
-      onWheel={handleWheel}
-      className={`grow w-full h-full object-contain bg-black ${
-        picking ? "cursor-crosshair" : "cursor-default"
-      }`}
-      alt=""
-    />
+    <div ref={containerRef} className="relative grow min-h-0">
+      <img
+        ref={imgRef}
+        onMouseMove={handleMouseMove}
+        onClick={handleClick}
+        onWheel={handleWheel}
+        className={`w-full h-full object-contain bg-black ${
+          picking ? "cursor-crosshair" : "cursor-default"
+        }`}
+        alt=""
+      />
+      {overlay && (
+        <div
+          className="absolute pointer-events-none border-2 border-pink-500 bg-pink-500/25"
+          style={{
+            left: overlay.x,
+            top: overlay.y,
+            width: overlay.width,
+            height: overlay.height,
+          }}
+        />
+      )}
+    </div>
   );
 }

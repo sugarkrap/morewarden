@@ -43,20 +43,21 @@ export default async function handler(
   }
 
   const { type, x, y, deltaY } = dataValidation.data;
-  const viewport = session.page.viewportSize();
+  const page = session.activePage;
+  const viewport = page.viewportSize();
   const pixelX = x * (viewport?.width ?? 1280);
   const pixelY = y * (viewport?.height ?? 720);
 
   try {
     if (type === "move") {
-      await session.page.mouse.move(pixelX, pixelY);
+      await page.mouse.move(pixelX, pixelY);
     } else if (type === "click") {
-      await session.page.mouse.move(pixelX, pixelY);
-      await session.page.mouse.down();
-      await session.page.mouse.up();
+      await page.mouse.move(pixelX, pixelY);
+      await page.mouse.down();
+      await page.mouse.up();
     } else if (type === "scroll") {
-      await session.page.mouse.move(pixelX, pixelY);
-      await session.page.mouse.wheel(0, deltaY ?? 0);
+      await page.mouse.move(pixelX, pixelY);
+      await page.mouse.wheel(0, deltaY ?? 0);
     }
     return res.status(200).json({ response: "ok" });
   } catch (error: any) {

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { useGetLink, useDeleteLink } from "@linkwarden/router/links";
 import { Button } from "@/components/ui/button";
 import LiveScreenPreview from "./LiveScreenPreview";
+import ConsolePanel from "./ConsolePanel";
 
 const STUB_SCRIPT = `async function before(context) {
   // Runs before the page is scraped. \`context\` is a Playwright
@@ -30,6 +31,8 @@ export default function AssistedScrapingEditor() {
   const [script, setScript] = useState(STUB_SCRIPT);
   const [saving, setSaving] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [dryRunning, setDryRunning] = useState(false);
+  const editorRef = useRef<any>(null);
 
   const handleCancel = async () => {
     if (!linkId) return;
@@ -61,8 +64,41 @@ export default function AssistedScrapingEditor() {
     }
   };
 
+  const handleDryRun = async () => {
+    if (!linkId) return;
+    setDryRunning(true);
+    try {
+      await fetch(`/api/v1/links/${linkId}/live-session/dry-run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script }),
+      });
+    } finally {
+      setDryRunning(false);
+    }
+  };
+
   const handleSelectorPicked = (selector: string) => {
-    navigator.clipboard.writeText(selector);
+    const editorInstance = editorRef.current;
+    const position = editorInstance?.getPosition();
+
+    if (editorInstance && position) {
+      editorInstance.executeEdits("selector-picker", [
+        {
+          range: {
+            startLineNumber: position.lineNumber,
+            startColumn: position.column,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          },
+          text: JSON.stringify(selector),
+        },
+      ]);
+      editorInstance.focus();
+    } else {
+      navigator.clipboard.writeText(selector);
+    }
+
     toast.success(t("selector_copied", { selector }));
   };
 
@@ -90,11 +126,14 @@ export default function AssistedScrapingEditor() {
             theme="vs-dark"
             value={script}
             onChange={(value) => setScript(value ?? "")}
+            onMount={(editorInstance) => {
+              editorRef.current = editorInstance;
+            }}
             options={{ minimap: { enabled: false }, fontSize: 13 }}
           />
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex flex-col min-h-0">
           <div className="flex justify-end p-2 border-b border-neutral-content bg-base-200">
             <Button
               variant={picking ? "primary" : "ghost"}
@@ -104,17 +143,30 @@ export default function AssistedScrapingEditor() {
               {picking ? t("selector_picker_on") : t("selector_picker_off")}
             </Button>
           </div>
-          {link?.url ? (
-            <LiveScreenPreview
-              linkId={linkId}
-              picking={picking}
-              onSelectorPicked={handleSelectorPicked}
-            />
-          ) : (
-            <div className="grow flex items-center justify-center bg-base-200 text-neutral">
-              {t("loading")}
-            </div>
-          )}
+
+          <div className="flex flex-col h-3/5 min-h-0">
+            {link?.url ? (
+              <LiveScreenPreview
+                linkId={linkId}
+                picking={picking}
+                onSelectorPicked={handleSelectorPicked}
+              />
+            ) : (
+              <div className="grow flex items-center justify-center bg-base-200 text-neutral">
+                {t("loading")}
+              </div>
+            )}
+          </div>
+
+          <div className="h-2/5 min-h-0">
+            {link?.url && (
+              <ConsolePanel
+                linkId={linkId}
+                onDryRun={handleDryRun}
+                dryRunning={dryRunning}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

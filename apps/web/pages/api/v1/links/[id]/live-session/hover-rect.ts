@@ -4,35 +4,16 @@ import verifyUser from "@/lib/api/verifyUser";
 import assertAssistedScrapingAccess from "@/lib/api/assistedScraping/assertAccess";
 import { getLiveSession } from "@/lib/api/assistedScraping/liveSessionStore";
 
-const PickSchema = z.object({
+const HoverRectSchema = z.object({
   x: z.number().min(0).max(1),
   y: z.number().min(0).max(1),
 });
 
-function cssPath([x, y]: [number, number]) {
+function elementRectAt([x, y]: [number, number]) {
   const el = document.elementFromPoint(x, y);
   if (!el) return null;
-
-  if (el.id) return "#" + CSS.escape(el.id);
-
-  const parts: string[] = [];
-  let node: Element | null = el;
-  while (node && node.nodeType === 1 && parts.length < 6) {
-    if (node.id) {
-      parts.unshift("#" + CSS.escape(node.id));
-      break;
-    }
-    let selector = node.tagName.toLowerCase();
-    let sibling = node;
-    let nth = 1;
-    while ((sibling = sibling.previousElementSibling as Element)) {
-      if (sibling.tagName === node.tagName) nth++;
-    }
-    selector += `:nth-of-type(${nth})`;
-    parts.unshift(selector);
-    node = node.parentElement;
-  }
-  return parts.join(" > ");
+  const rect = el.getBoundingClientRect();
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
 }
 
 export default async function handler(
@@ -59,7 +40,7 @@ export default async function handler(
     return res.status(404).json({ response: "No live session." });
   }
 
-  const dataValidation = PickSchema.safeParse(req.body);
+  const dataValidation = HoverRectSchema.safeParse(req.body);
   if (!dataValidation.success) {
     return res.status(400).json({
       response: `Error: ${dataValidation.error.issues[0].message}`,
@@ -68,19 +49,19 @@ export default async function handler(
 
   const { x, y } = dataValidation.data;
   const page = session.activePage;
-  const viewport = page.viewportSize();
-  const pixelX = x * (viewport?.width ?? 1280);
-  const pixelY = y * (viewport?.height ?? 720);
+  const viewport = page.viewportSize() ?? { width: 1280, height: 720 };
+  const pixelX = x * viewport.width;
+  const pixelY = y * viewport.height;
 
   try {
-    const selector = await page.evaluate(cssPath, [pixelX, pixelY] as [
+    const rect = await page.evaluate(elementRectAt, [pixelX, pixelY] as [
       number,
       number,
     ]);
-    return res.status(200).json({ response: { selector } });
+    return res.status(200).json({ response: { rect, viewport } });
   } catch (error: any) {
     return res.status(502).json({
-      response: error?.message || "Failed to pick an element.",
+      response: error?.message || "Failed to inspect the live page.",
     });
   }
 }
