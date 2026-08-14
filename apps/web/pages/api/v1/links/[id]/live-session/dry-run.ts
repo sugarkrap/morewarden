@@ -6,7 +6,7 @@ import {
   getLiveSession,
   pushLog,
 } from "@/lib/api/assistedScraping/liveSessionStore";
-import { runUnsandboxedHookScript } from "@/lib/api/assistedScraping/runUnsandboxedHookScript";
+import { loadUnsandboxedHookScript } from "@linkwarden/lib/runUnsandboxedHookScript";
 
 const DryRunSchema = z.object({
   script: z.string().trim().min(1).max(100_000),
@@ -65,13 +65,10 @@ export default async function handler(
   };
 
   try {
-    await runUnsandboxedHookScript({
-      script: dataValidation.data.script,
-      context: session.context,
-      page: session.activePage,
-      api: stubbedApi,
-      log,
-    });
+    const hooks = loadUnsandboxedHookScript(dataValidation.data.script, log);
+    if (hooks.before) await hooks.before(session.context);
+    if (hooks.after) await hooks.after(session.activePage, stubbedApi);
+    log("info", "dry run finished");
     return res.status(200).json({ response: "ok" });
   } catch (error: any) {
     log("error", error?.message || "Dry run failed.");

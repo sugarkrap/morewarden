@@ -311,6 +311,7 @@
   "link_url_placeholder": "e.g. http://example.com/",
   "link_description_placeholder": "Notes, thoughts, etc.",
   "enable_assisted_scraping": "Enable assisted scraping",
+  "hook_script_error_title": "Assisted scraping script failed",
   "more_options": "More Options",
   "hide_options": "Hide Options",
   "create_link": "Create Link",

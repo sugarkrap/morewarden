@@ -2,6 +2,7 @@ import { spawn } from "child_process";
 import { createFile } from "@linkwarden/filesystem";
 import { prisma } from "@linkwarden/prisma";
 import { Link } from "@linkwarden/prisma/client";
+import { saveLinkFile } from "@linkwarden/lib/saveLinkFile";
 import sanitizeHtmlForMonolith, {
   CapturedFlashAsset,
 } from "./sanitizeHtmlForMonolith";
@@ -19,24 +20,17 @@ function flashAssetName(url: string, index: number): string {
 
 async function saveFlashAssets(link: Link, assets: CapturedFlashAsset[]) {
   await Promise.all(
-    assets.map(async (asset, index) => {
-      const name = flashAssetName(asset.url, index);
-      const filePath = `archives/${link.collectionId}/${link.id}/files/${index}-${name}`;
-
-      const written = await createFile({ data: asset.buffer, filePath });
-      if (!written) return;
-
-      await prisma.linkFile.create({
-        data: {
-          linkId: link.id,
-          url: asset.url,
-          name,
-          filePath,
-          mimeType: asset.mimeType,
-          size: asset.buffer.length,
-        },
-      });
-    })
+    assets.map((asset, index) =>
+      saveLinkFile({
+        linkId: link.id,
+        collectionId: link.collectionId,
+        index,
+        name: flashAssetName(asset.url, index),
+        buffer: asset.buffer,
+        mimeType: asset.mimeType,
+        url: asset.url,
+      })
+    )
   );
 }
 

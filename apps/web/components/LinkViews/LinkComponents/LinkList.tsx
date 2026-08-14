@@ -18,6 +18,7 @@ import LinkFormats from "./LinkFormats";
 import openLink from "@/lib/client/openLink";
 import { useDraggable } from "@dnd-kit/core";
 import { TFunction } from "i18next";
+import useAutoOpenLinkModal from "@/hooks/useAutoOpenLinkModal";
 
 type Props = {
   link: LinkIncludingShortenedCollectionAndTags;
@@ -58,6 +59,8 @@ function LinkList({
   } = useLocalSettingsStore();
 
   const [linkModal, setLinkModal] = useState(false);
+
+  useAutoOpenLinkModal(link.id, setLinkModal);
 
   return (
     <>

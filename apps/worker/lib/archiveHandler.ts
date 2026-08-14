@@ -19,6 +19,15 @@ import {
   UnsafeUrlError,
 } from "@linkwarden/lib/ssrf";
 import protectPageRequests from "@linkwarden/lib/protectPageRequests";
+import { loadUnsandboxedHookScript } from "@linkwarden/lib/runUnsandboxedHookScript";
+import { saveLinkFile } from "@linkwarden/lib/saveLinkFile";
+
+const HOOK_FILE_EXTENSIONS: Record<string, string> = {
+  "application/x-shockwave-flash": "swf",
+  "application/pdf": "pdf",
+  "image/png": "png",
+  "image/jpeg": "jpg",
+};
 
 const BROWSER_TIMEOUT = Number(process.env.BROWSER_TIMEOUT) || 5;
 
@@ -109,9 +118,32 @@ export default async function archiveHandler(
           aiTag: user.aiTaggingMethod !== AiTaggingMethod.DISABLED,
         };
 
+  const hookLog: string[] = [];
+  let hookFailed = false;
+  const logHook = (level: string, ...args: unknown[]) => {
+    hookLog.push(
+      `[${level}] ${args
+        .map((a) => (typeof a === "string" ? a : JSON.stringify(a)))
+        .join(" ")}`
+    );
+  };
+  const hooks =
+    link.assistedScraping && link.hookScript
+      ? loadUnsandboxedHookScript(link.hookScript, logHook)
+      : null;
+
   try {
     await Promise.race([
       (async () => {
+        if (hooks?.before) {
+          try {
+            await hooks.before(context);
+          } catch (err: any) {
+            hookFailed = true;
+            logHook("error", `before() failed: ${err?.message || err}`);
+          }
+        }
+
         const { linkType, imageExtension } = await determineLinkType(
           link.id,
           link.url
@@ -168,6 +200,36 @@ export default async function archiveHandler(
 
           const content = await page.content();
 
+          if (hooks?.after) {
+            let fileIndex = 0;
+            const api = {
+              addFileToArchive: async (buffer: Buffer, mimeType: string) => {
+                const ext = HOOK_FILE_EXTENSIONS[mimeType] || "bin";
+                const name = `hook-file-${fileIndex + 1}.${ext}`;
+                await saveLinkFile({
+                  linkId: link.id,
+                  collectionId: link.collectionId,
+                  index: fileIndex++,
+                  name,
+                  buffer,
+                  mimeType,
+                  url: link.url || "",
+                });
+                logHook(
+                  "info",
+                  `addFileToArchive: saved ${name} (${buffer.length} bytes, ${mimeType})`
+                );
+              },
+            };
+
+            try {
+              await hooks.after(page, api);
+            } catch (err: any) {
+              hookFailed = true;
+              logHook("error", `after() failed: ${err?.message || err}`);
+            }
+          }
+
           // Preview
           if (!link.preview) await handleArchivePreview(link, page);
 
@@ -223,6 +285,12 @@ export default async function archiveHandler(
           pdf: !finalLink.pdf ? "unavailable" : undefined,
           preview: !finalLink.preview ? "unavailable" : undefined,
           indexVersion: null,
+          ...(hooks
+            ? {
+                hookScriptFailed: hookFailed,
+                hookScriptLog: hookLog.join("\n") || null,
+              }
+            : {}),
         },
       });
     } else {

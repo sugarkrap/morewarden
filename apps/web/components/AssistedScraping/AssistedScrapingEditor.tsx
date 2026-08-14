@@ -56,7 +56,9 @@ export default function AssistedScrapingEditor() {
       if (!response.ok) throw new Error(data.response);
 
       toast.success(t("saved"));
-      router.push(`/links/${linkId}`);
+      router.push(
+        `/collections/${link?.collection.id}?openLinkId=${linkId}`
+      );
     } catch (error: any) {
       toast.error(error.message);
     } finally {

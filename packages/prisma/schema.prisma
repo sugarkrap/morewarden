@@ -189,6 +189,8 @@ model Link {
   files           LinkFile[]
   assistedScraping Boolean    @default(false)
   hookScript      String?
+  hookScriptFailed Boolean   @default(false)
+  hookScriptLog   String?
   clientSide      Boolean     @default(false)
   aiTagged        Boolean     @default(false)
   metaDescription String?

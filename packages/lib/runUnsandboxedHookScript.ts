@@ -15,19 +15,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-export async function runUnsandboxedHookScript({
-  script,
-  context,
-  page,
-  api,
-  log,
-}: {
-  script: string;
-  context: BrowserContext;
-  page: Page;
-  api: Record<string, unknown>;
-  log: Log;
-}) {
+export function loadUnsandboxedHookScript(script: string, log: Log) {
   const vmGlobalsSharingOuterPrototypeChains = {
     console: {
       log: (...a: unknown[]) => log("log", ...a),
@@ -51,13 +39,20 @@ export async function runUnsandboxedHookScript({
     after?: (page: Page, api: Record<string, unknown>) => Promise<void>;
   };
 
-  if (typeof before === "function") {
-    log("info", "running before()...");
-    await withTimeout(before(context), CALL_TIMEOUT_MS);
-  }
-  if (typeof after === "function") {
-    log("info", "running after()...");
-    await withTimeout(after(page, api), CALL_TIMEOUT_MS);
-  }
-  log("info", "dry run finished");
+  return {
+    before:
+      typeof before === "function"
+        ? async (context: BrowserContext) => {
+            log("info", "running before()...");
+            await withTimeout(before(context), CALL_TIMEOUT_MS);
+          }
+        : undefined,
+    after:
+      typeof after === "function"
+        ? async (page: Page, api: Record<string, unknown>) => {
+            log("info", "running after()...");
+            await withTimeout(after(page, api), CALL_TIMEOUT_MS);
+          }
+        : undefined,
+  };
 }

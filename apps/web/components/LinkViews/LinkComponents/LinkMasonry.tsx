@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator";
 import { useDraggable } from "@dnd-kit/core";
 import { cn } from "@linkwarden/lib/utils";
 import { TFunction } from "i18next";
+import useAutoOpenLinkModal from "@/hooks/useAutoOpenLinkModal";
 
 type Props = {
   link: LinkIncludingShortenedCollectionAndTags;
@@ -69,6 +70,8 @@ function LinkMasonry({
   const ref = useRef<HTMLDivElement>(null);
 
   const [linkModal, setLinkModal] = useState(false);
+
+  useAutoOpenLinkModal(link.id, setLinkModal);
 
   return (
     <div
