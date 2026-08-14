@@ -313,6 +313,7 @@
   "enable_assisted_scraping": "Activer le scraping assisté",
   "archive_error_title": "Échec de l’archivage",
   "hook_script_error_title": "Échec du script de scraping assisté",
+  "hook_script_log_title": "Journal du script de scraping assisté",
   "more_options": "Plus d’options",
   "hide_options": "Cacher les options",
   "create_link": "Créer un lien",

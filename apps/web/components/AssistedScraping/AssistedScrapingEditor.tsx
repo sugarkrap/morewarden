@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
@@ -33,6 +33,15 @@ export default function AssistedScrapingEditor() {
   const [picking, setPicking] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
   const editorRef = useRef<any>(null);
+  const scriptLoadedFromLinkRef = useRef(false);
+
+  useEffect(() => {
+    if (scriptLoadedFromLinkRef.current) return;
+    if (!link) return;
+
+    scriptLoadedFromLinkRef.current = true;
+    if (link.hookScript) setScript(link.hookScript);
+  }, [link]);
 
   const handleCancel = async () => {
     if (!linkId) return;

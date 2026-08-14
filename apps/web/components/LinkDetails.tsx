@@ -663,12 +663,28 @@ export default function LinkDetails({
             </div>
           )}
 
-          {mode === "view" && link.hookScriptFailed && (
-            <div className="mt-3 rounded-md border border-error bg-error/10 p-3">
-              <p className="text-error text-sm font-semibold mb-1">
-                {t("hook_script_error_title")}
+          {mode === "view" && link.hookScriptLog && (
+            <div
+              className={`mt-3 rounded-md border p-3 ${
+                link.hookScriptFailed
+                  ? "border-error bg-error/10"
+                  : "border-neutral-content bg-base-200"
+              }`}
+            >
+              <p
+                className={`text-sm font-semibold mb-1 ${
+                  link.hookScriptFailed ? "text-error" : ""
+                }`}
+              >
+                {link.hookScriptFailed
+                  ? t("hook_script_error_title")
+                  : t("hook_script_log_title")}
               </p>
-              <pre className="text-error text-xs whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+              <pre
+                className={`text-xs whitespace-pre-wrap break-words max-h-40 overflow-y-auto ${
+                  link.hookScriptFailed ? "text-error" : ""
+                }`}
+              >
                 {link.hookScriptLog}
               </pre>
             </div>

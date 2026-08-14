@@ -313,6 +313,7 @@
   "enable_assisted_scraping": "Enable assisted scraping",
   "archive_error_title": "Archiving failed",
   "hook_script_error_title": "Assisted scraping script failed",
+  "hook_script_log_title": "Assisted scraping script log",
   "more_options": "More Options",
   "hide_options": "Hide Options",
   "create_link": "Create Link",
