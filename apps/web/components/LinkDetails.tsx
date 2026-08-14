@@ -652,6 +652,17 @@ export default function LinkDetails({
             </div>
           )}
 
+          {mode === "view" && link.archiveError && (
+            <div className="mt-3 rounded-md border border-error bg-error/10 p-3">
+              <p className="text-error text-sm font-semibold mb-1">
+                {t("archive_error_title")}
+              </p>
+              <pre className="text-error text-xs whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                {link.archiveError}
+              </pre>
+            </div>
+          )}
+
           {mode === "view" && link.hookScriptFailed && (
             <div className="mt-3 rounded-md border border-error bg-error/10 p-3">
               <p className="text-error text-sm font-semibold mb-1">

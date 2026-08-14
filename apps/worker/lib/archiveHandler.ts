@@ -1,4 +1,4 @@
-import { Browser } from "playwright";
+import { Browser, BrowserContext } from "playwright";
 import { prisma } from "@linkwarden/prisma";
 import sendToWayback from "./preservationScheme/sendToWayback";
 import { AiTaggingMethod } from "@linkwarden/prisma/client";
@@ -86,38 +86,7 @@ export default async function archiveHandler(
     }, BROWSER_TIMEOUT * 60000);
   });
 
-  const contextOptions = getDefaultContextOptions();
-  const context = await browser.newContext(contextOptions);
-  await protectPageRequests(context);
-  const page = await context.newPage();
-
-  createFolder({ filePath: `archives/preview/${link.collectionId}` });
-  createFolder({ filePath: `archives/${link.collectionId}` });
-
-  const archivalTags = link.tags.filter(isArchivalTag);
-  const archivalSettings: ArchivalSettings =
-    archivalTags.length > 0
-      ? {
-          archiveAsScreenshot: archivalTags.some(
-            (tag) => tag.archiveAsScreenshot
-          ),
-          archiveAsMonolith: archivalTags.some((tag) => tag.archiveAsMonolith),
-          archiveAsPDF: archivalTags.some((tag) => tag.archiveAsPDF),
-          archiveAsReadable: archivalTags.some((tag) => tag.archiveAsReadable),
-          archiveAsWaybackMachine: archivalTags.some(
-            (tag) => tag.archiveAsWaybackMachine
-          ),
-          aiTag: archivalTags.some((tag) => tag.aiTag),
-        }
-      : {
-          archiveAsScreenshot: user.archiveAsScreenshot,
-          archiveAsMonolith: user.archiveAsMonolith,
-          archiveAsPDF: user.archiveAsPDF,
-          archiveAsReadable: user.archiveAsReadable,
-          archiveAsWaybackMachine: user.archiveAsWaybackMachine,
-          aiTag: user.aiTaggingMethod !== AiTaggingMethod.DISABLED,
-        };
-
+  let archiveError: string | null = null;
   const hookLog: string[] = [];
   let hookFailed = false;
   const logHook = (level: string, ...args: unknown[]) => {
@@ -127,12 +96,53 @@ export default async function archiveHandler(
         .join(" ")}`
     );
   };
-  const hooks =
-    link.assistedScraping && link.hookScript
-      ? loadUnsandboxedHookScript(link.hookScript, logHook)
-      : null;
+
+  let contextToClose: BrowserContext | undefined;
+  let hooks: ReturnType<typeof loadUnsandboxedHookScript> | null = null;
 
   try {
+    const contextOptions = getDefaultContextOptions();
+    const context = await browser.newContext(contextOptions);
+    contextToClose = context;
+    await protectPageRequests(context);
+    const page = await context.newPage();
+
+    createFolder({ filePath: `archives/preview/${link.collectionId}` });
+    createFolder({ filePath: `archives/${link.collectionId}` });
+
+    const archivalTags = link.tags.filter(isArchivalTag);
+    const archivalSettings: ArchivalSettings =
+      archivalTags.length > 0
+        ? {
+            archiveAsScreenshot: archivalTags.some(
+              (tag) => tag.archiveAsScreenshot
+            ),
+            archiveAsMonolith: archivalTags.some(
+              (tag) => tag.archiveAsMonolith
+            ),
+            archiveAsPDF: archivalTags.some((tag) => tag.archiveAsPDF),
+            archiveAsReadable: archivalTags.some(
+              (tag) => tag.archiveAsReadable
+            ),
+            archiveAsWaybackMachine: archivalTags.some(
+              (tag) => tag.archiveAsWaybackMachine
+            ),
+            aiTag: archivalTags.some((tag) => tag.aiTag),
+          }
+        : {
+            archiveAsScreenshot: user.archiveAsScreenshot,
+            archiveAsMonolith: user.archiveAsMonolith,
+            archiveAsPDF: user.archiveAsPDF,
+            archiveAsReadable: user.archiveAsReadable,
+            archiveAsWaybackMachine: user.archiveAsWaybackMachine,
+            aiTag: user.aiTaggingMethod !== AiTaggingMethod.DISABLED,
+          };
+
+    hooks =
+      link.assistedScraping && link.hookScript
+        ? loadUnsandboxedHookScript(link.hookScript, logHook)
+        : null;
+
     await Promise.race([
       (async () => {
         if (hooks?.before) {
@@ -264,6 +274,7 @@ export default async function archiveHandler(
   } catch (err) {
     console.log("Failed Link:", link.url);
     console.log("Reason:", err);
+    archiveError = err instanceof Error ? err.message : String(err);
     throw err;
   } finally {
     if (timeoutId !== undefined) {
@@ -285,6 +296,7 @@ export default async function archiveHandler(
           pdf: !finalLink.pdf ? "unavailable" : undefined,
           preview: !finalLink.preview ? "unavailable" : undefined,
           indexVersion: null,
+          archiveError,
           ...(hooks
             ? {
                 hookScriptFailed: hookFailed,
@@ -297,7 +309,7 @@ export default async function archiveHandler(
       await removeFiles(link.id, link.collectionId);
     }
 
-    await context?.close().catch(() => {});
+    await contextToClose?.close().catch(() => {});
   }
 }
 

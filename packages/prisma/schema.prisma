@@ -191,6 +191,7 @@ model Link {
   hookScript      String?
   hookScriptFailed Boolean   @default(false)
   hookScriptLog   String?
+  archiveError    String?
   clientSide      Boolean     @default(false)
   aiTagged        Boolean     @default(false)
   metaDescription String?
