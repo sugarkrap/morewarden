@@ -6,6 +6,45 @@ import getPermission from "@/lib/api/getPermission";
 import verifyUser from "@/lib/api/verifyUser";
 import { safeFetch } from "@linkwarden/lib/safeFetch";
 
+const SANDBOX_SHIM_SCRIPT = `
+(function () {
+  try {
+    Object.defineProperty(document, "cookie", {
+      get: function () { return ""; },
+      set: function () {},
+      configurable: true,
+    });
+  } catch (e) {}
+
+  function fakeStorage() {
+    var store = {};
+    return {
+      getItem: function (k) {
+        return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+      },
+      setItem: function (k, v) { store[k] = String(v); },
+      removeItem: function (k) { delete store[k]; },
+      clear: function () { store = {}; },
+      key: function (i) { return Object.keys(store)[i] || null; },
+      get length() { return Object.keys(store).length; },
+    };
+  }
+
+  try {
+    Object.defineProperty(window, "localStorage", {
+      value: fakeStorage(),
+      configurable: true,
+    });
+  } catch (e) {}
+  try {
+    Object.defineProperty(window, "sessionStorage", {
+      value: fakeStorage(),
+      configurable: true,
+    });
+  } catch (e) {}
+})();
+`;
+
 const PICKER_SCRIPT = `
 (function () {
   var picking = false;
@@ -121,6 +160,10 @@ export default async function handler(
     const base = document.createElement("base");
     base.setAttribute("href", link.url);
     document.head?.prepend(base);
+
+    const shim = document.createElement("script");
+    shim.textContent = SANDBOX_SHIM_SCRIPT;
+    document.head?.prepend(shim);
 
     const script = document.createElement("script");
     script.textContent = PICKER_SCRIPT;
