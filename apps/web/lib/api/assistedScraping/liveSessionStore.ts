@@ -18,9 +18,9 @@ const sessions = new Map<number, LiveSession>();
 
 setInterval(() => {
   const now = Date.now();
-  for (const [linkId, session] of sessions) {
+  sessions.forEach((session, linkId) => {
     if (now - session.lastActivity > IDLE_TIMEOUT_MS) closeLiveSession(linkId);
-  }
+  });
 }, 60_000);
 
 export async function getOrCreateLiveSession(linkId: number, url: string) {
