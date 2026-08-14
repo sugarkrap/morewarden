@@ -1,0 +1,159 @@
+import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "next-i18next";
+
+type Props = {
+  linkId: number;
+  picking: boolean;
+  onSelectorPicked: (selector: string) => void;
+};
+
+const SCREENSHOT_INTERVAL_MS = 400;
+const MOVE_THROTTLE_MS = 100;
+
+export default function LiveScreenPreview({
+  linkId,
+  picking,
+  onSelectorPicked,
+}: Props) {
+  const { t } = useTranslation();
+  const imgRef = useRef<HTMLImageElement>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const lastMoveRef = useRef(0);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch(`/api/v1/links/${linkId}/live-session/start`, { method: "POST" })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.response);
+        }
+        if (!cancelled) setReady(true);
+      })
+      .catch((err) => !cancelled && setError(err.message));
+
+    return () => {
+      cancelled = true;
+      fetch(`/api/v1/links/${linkId}/live-session/stop`, { method: "POST" });
+    };
+  }, [linkId]);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    let cancelled = false;
+    const fetchFrame = async () => {
+      try {
+        const res = await fetch(
+          `/api/v1/links/${linkId}/live-session/screenshot`
+        );
+        if (!res.ok || cancelled) return;
+
+        const blob = await res.blob();
+        if (cancelled) return;
+
+        const url = URL.createObjectURL(blob);
+        if (imgRef.current) imgRef.current.src = url;
+        if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = url;
+      } catch {}
+    };
+
+    fetchFrame();
+    const interval = setInterval(fetchFrame, SCREENSHOT_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [ready, linkId]);
+
+  const relativePosition = (e: React.MouseEvent<HTMLImageElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return {
+      x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
+      y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLImageElement>) => {
+    const now = Date.now();
+    if (now - lastMoveRef.current < MOVE_THROTTLE_MS) return;
+    lastMoveRef.current = now;
+
+    const { x, y } = relativePosition(e);
+    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "move", x, y }),
+    });
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    const { x, y } = relativePosition(e);
+
+    if (picking) {
+      fetch(`/api/v1/links/${linkId}/live-session/pick`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x, y }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.response?.selector) {
+            onSelectorPicked(data.response.selector);
+          }
+        });
+      return;
+    }
+
+    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "click", x, y }),
+    });
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLImageElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+
+    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "scroll", x, y, deltaY: e.deltaY }),
+    });
+  };
+
+  if (error) {
+    return (
+      <div className="grow flex items-center justify-center bg-base-200 text-neutral text-center p-5">
+        {error}
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <div className="grow flex items-center justify-center bg-base-200 text-neutral">
+        {t("loading")}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      ref={imgRef}
+      onMouseMove={handleMouseMove}
+      onClick={handleClick}
+      onWheel={handleWheel}
+      className={`grow w-full h-full object-contain bg-black ${
+        picking ? "cursor-crosshair" : "cursor-default"
+      }`}
+      alt=""
+    />
+  );
+}

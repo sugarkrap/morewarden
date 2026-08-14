@@ -13,12 +13,12 @@ import pdfHandler from "./preservationScheme/pdfHandler";
 import { LinkWithCollectionOwnerAndTags } from "@linkwarden/types/global";
 import { isArchivalTag } from "@linkwarden/lib/isArchivalTag";
 import { ArchivalSettings } from "@linkwarden/types/global";
-import { getDefaultContextOptions } from "./browser";
+import { getDefaultContextOptions } from "@linkwarden/lib/browser";
 import {
   assertUrlIsSafeForServerSideFetch,
   UnsafeUrlError,
 } from "@linkwarden/lib/ssrf";
-import protectPageRequests from "./protectPageRequests";
+import protectPageRequests from "@linkwarden/lib/protectPageRequests";
 
 const BROWSER_TIMEOUT = Number(process.env.BROWSER_TIMEOUT) || 5;
 

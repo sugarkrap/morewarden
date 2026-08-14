@@ -2,7 +2,7 @@ import archiveHandler from "../lib/archiveHandler";
 import { LinkWithCollectionOwnerAndTags } from "@linkwarden/types/global";
 import { delay } from "@linkwarden/lib/utils";
 import getLinkBatchFairly from "../lib/getLinkBatchFairly";
-import { launchBrowser } from "../lib/browser";
+import { launchBrowser } from "@linkwarden/lib/browser";
 import { countUnprocessedBillableLinks } from "../lib/countUnprocessedBillableLinks";
 import { Browser } from "playwright";
 
