@@ -13,6 +13,7 @@ export type Config = {
   STRIPE_ENABLED: boolean | null;
   TRIAL_PERIOD_DAYS: number | null;
   REQUIRE_CC: boolean | null;
+  ASSISTED_SCRAPING_ENABLED: boolean | null;
 };
 
 const normalizeVersion = (version?: string | null) => {

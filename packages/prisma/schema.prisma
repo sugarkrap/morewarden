@@ -186,6 +186,9 @@ model Link {
   pdf             String?
   readable        String?
   monolith        String?
+  files           LinkFile[]
+  assistedScraping Boolean    @default(false)
+  hookScript      String?
   clientSide      Boolean     @default(false)
   aiTagged        Boolean     @default(false)
   metaDescription String?
@@ -196,6 +199,22 @@ model Link {
   updatedAt       DateTime    @default(now()) @updatedAt
 
   @@index([collectionId])
+}
+
+// Standalone downloadable files discovered while archiving a link, as
+// opposed to the single-per-link `monolith`/`pdf`/etc. formats above.
+model LinkFile {
+  id        Int      @id @default(autoincrement())
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  linkId    Int
+  url       String
+  name      String
+  filePath  String
+  mimeType  String
+  size      Int
+  createdAt DateTime @default(now())
+
+  @@index([linkId])
 }
 
 model Tag {

@@ -103,10 +103,11 @@ describe("/api/v1/archives/[linkId] GET", () => {
     );
 
     expect(state.statusCode).toBe(200);
-    expect(state.headers.get("Content-Type")).toBe("text/html");
+    expect(state.headers.get("Content-Type")).toBe("text/html; charset=utf-8");
     expect(state.headers.get("Cache-Control")).toBe(
       "private, max-age=31536000, immutable"
     );
+    expect(state.headers.get("Content-Security-Policy")).toBe("sandbox");
     expect(state.sentBody).toBe("<html>ok</html>");
   });
 });

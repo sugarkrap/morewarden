@@ -2,8 +2,43 @@ import { spawn } from "child_process";
 import { createFile } from "@linkwarden/filesystem";
 import { prisma } from "@linkwarden/prisma";
 import { Link } from "@linkwarden/prisma/client";
-import sanitizeHtmlForMonolith from "./sanitizeHtmlForMonolith";
+import sanitizeHtmlForMonolith, {
+  CapturedFlashAsset,
+} from "./sanitizeHtmlForMonolith";
 import { getSsrfProxyUrl } from "../ssrfProxy";
+
+function flashAssetName(url: string, index: number): string {
+  try {
+    const base = decodeURIComponent(
+      new URL(url).pathname.split("/").pop() || ""
+    ).trim();
+    if (base) return base;
+  } catch {}
+  return `flash-${index + 1}.swf`;
+}
+
+async function saveFlashAssets(link: Link, assets: CapturedFlashAsset[]) {
+  await Promise.all(
+    assets.map(async (asset, index) => {
+      const name = flashAssetName(asset.url, index);
+      const filePath = `archives/${link.collectionId}/${link.id}/files/${index}-${name}`;
+
+      const written = await createFile({ data: asset.buffer, filePath });
+      if (!written) return;
+
+      await prisma.linkFile.create({
+        data: {
+          linkId: link.id,
+          url: asset.url,
+          name,
+          filePath,
+          mimeType: asset.mimeType,
+          size: asset.buffer.length,
+        },
+      });
+    })
+  );
+}
 
 export default async function handleMonolith(
   link: Link,
@@ -12,14 +47,17 @@ export default async function handleMonolith(
 ): Promise<void> {
   if (!link.url) return;
 
-  const pageContent = await sanitizeHtmlForMonolith(htmlFromPage, link.url);
+  const { html: pageContent, flashAssets } = await sanitizeHtmlForMonolith(
+    htmlFromPage,
+    link.url
+  );
 
   const proxyUrl =
     process.env.ALLOW_PRIVATE_NETWORK_ACCESS === "true"
       ? null
       : await getSsrfProxyUrl();
 
-  return new Promise<void>((resolve, reject) => {
+  await new Promise<void>((resolve, reject) => {
     const args = [
       "-",
       "-I",
@@ -93,4 +131,8 @@ export default async function handleMonolith(
       }
     });
   });
+
+  if (flashAssets.length) {
+    await saveFlashAssets(link, flashAssets).catch(() => {});
+  }
 }

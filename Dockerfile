@@ -29,6 +29,11 @@ COPY packages/prisma/package.json ./packages/prisma/
 COPY packages/router/package.json ./packages/router/
 COPY packages/types/package.json ./packages/types/
 
+# apps/web's postinstall runs this to lay out the self-hosted Ruffle build;
+# needed here since it fires during `yarn workspaces focus`, before the
+# `COPY . .` below brings in the rest of the source.
+COPY apps/web/scripts/copy-ruffle.js ./apps/web/scripts/copy-ruffle.js
+
 # Install everything needed to build
 RUN --mount=type=cache,sharing=locked,target=/root/.yarn/berry/cache \
     yarn workspaces focus linkwarden @linkwarden/web @linkwarden/worker

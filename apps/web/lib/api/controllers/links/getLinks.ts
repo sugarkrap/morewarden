@@ -129,6 +129,7 @@ export default async function getLink(userId: number, query: LinkRequestQuery) {
     include: {
       tags: true,
       collection: true,
+      files: true,
       pinnedBy: {
         where: { id: userId },
         select: { id: true },

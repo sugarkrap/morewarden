@@ -143,6 +143,7 @@ export const PostLinkSchema = z.object({
         })
       )
       .optional() || [],
+  assistedScraping: z.boolean().optional(),
 });
 
 export type PostLinkSchemaType = z.infer<typeof PostLinkSchema>;

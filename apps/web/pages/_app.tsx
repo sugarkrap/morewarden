@@ -53,7 +53,7 @@ function App({ Component, pageProps }: AppPropsWithLayout) {
         basePath="/api/v1/auth"
       >
         <Head>
-          <title>Linkwarden</title>
+          <title>MoreWarden</title>
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <meta name="theme-color" content="#ffffff" />
           <link

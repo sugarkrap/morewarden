@@ -25,6 +25,17 @@ export default async function postLink(
   }
 
   const link = dataValidation.data;
+
+  if (
+    link.assistedScraping &&
+    process.env.NEXT_PUBLIC_ENABLE_ASSISTED_SCRAPING !== "true"
+  ) {
+    return {
+      response: "Assisted scraping is not enabled on this instance.",
+      status: 400,
+    };
+  }
+
   const shouldPreserveUrl = link.url
     ? await isUrlSafeForServerSideFetch(link.url)
     : false;
@@ -107,6 +118,7 @@ export default async function postLink(
       name,
       description: link.description,
       type: linkType,
+      assistedScraping: link.assistedScraping ?? false,
       createdBy: {
         connect: {
           id: userId,

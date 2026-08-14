@@ -11,6 +11,9 @@ node_modules
 .next
 /out/
 
+# generated at install time by scripts/copy-ruffle.js
+/apps/web/public/ruffle
+
 # production
 /build
 
@@ -53,6 +56,7 @@ certificates
 meilisearch
 meili_data
 .idea
+.vscode
 prisma/dev.db
 .turbo
 

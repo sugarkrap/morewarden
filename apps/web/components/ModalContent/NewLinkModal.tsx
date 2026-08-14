@@ -14,7 +14,9 @@ import {
 } from "@linkwarden/lib/schemaValidation";
 import { Button } from "@/components/ui/button";
 import { Separator } from "../ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useAddLink } from "@linkwarden/router/links";
+import { useConfig } from "@linkwarden/router/config";
 
 type Props = {
   onClose: () => void;
@@ -32,16 +34,17 @@ export default function NewLinkModal({ onClose }: Props) {
       id: undefined,
       name: "",
     },
+    assistedScraping: false,
   } as PostLinkSchemaType;
 
   const addLink = useAddLink({
     toast,
     t,
   });
+  const { data: config } = useConfig();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [link, setLink] = useState<PostLinkSchemaType>(initial);
-  const [optionsExpanded, setOptionsExpanded] = useState(false);
   const router = useRouter();
   const { data: collections = [] } = useCollections();
 
@@ -95,6 +98,13 @@ export default function NewLinkModal({ onClose }: Props) {
         } [${dataValidation.error.issues[0].path.join(", ")}]`
       );
 
+    if (link.assistedScraping) {
+      const newLink = await addLink.mutateAsync(link);
+      onClose();
+      router.push(`/assisted-scraping/${newLink.id}`);
+      return;
+    }
+
     addLink.mutateAsync(link);
     onClose();
   };
@@ -129,49 +139,50 @@ export default function NewLinkModal({ onClose }: Props) {
           )}
         </div>
       </div>
-      {optionsExpanded && (
-        <div className="mt-5 grid sm:grid-cols-2 gap-3">
-          <div>
-            <p className="mb-2">{t("name")}</p>
-            <TextInput
-              value={link.name}
-              onChange={(e) => setLink({ ...link, name: e.target.value })}
-              placeholder={t("link_name_placeholder")}
-              className="bg-base-200"
-            />
-          </div>
-          <div>
-            <p className="mb-2">{t("tags")}</p>
-            <TagSelection
-              onChange={setTags}
-              defaultValue={
-                link.tags?.map((e) => ({ label: e.name, value: e.id })) || []
-              }
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <p className="mb-2">{t("description")}</p>
-            <textarea
-              value={unescapeString(link.description || "") || ""}
-              onChange={(e) =>
-                setLink({ ...link, description: e.target.value })
-              }
-              placeholder={t("link_description_placeholder")}
-              className="resize-none w-full h-32 rounded-md p-2 border-neutral-content bg-base-200 focus:border-primary border-solid border outline-none duration-100"
-            />
-          </div>
+      <div className="mt-5 grid sm:grid-cols-2 gap-3">
+        <div>
+          <p className="mb-2">{t("name")}</p>
+          <TextInput
+            value={link.name}
+            onChange={(e) => setLink({ ...link, name: e.target.value })}
+            placeholder={t("link_name_placeholder")}
+            className="bg-base-200"
+          />
         </div>
-      )}
-      <div className="flex justify-between items-center mt-5">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex items-center px-2 w-fit text-sm"
-          onClick={() => setOptionsExpanded(!optionsExpanded)}
-        >
-          <p>{optionsExpanded ? t("hide_options") : t("more_options")}</p>
-          <i className={`bi-chevron-${optionsExpanded ? "up" : "down"}`} />
-        </Button>
+        <div>
+          <p className="mb-2">{t("tags")}</p>
+          <TagSelection
+            onChange={setTags}
+            defaultValue={
+              link.tags?.map((e) => ({ label: e.name, value: e.id })) || []
+            }
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <p className="mb-2">{t("description")}</p>
+          <textarea
+            value={unescapeString(link.description || "") || ""}
+            onChange={(e) => setLink({ ...link, description: e.target.value })}
+            placeholder={t("link_description_placeholder")}
+            className="resize-none w-full h-32 rounded-md p-2 border-neutral-content bg-base-200 focus:border-primary border-solid border outline-none duration-100"
+          />
+        </div>
+        {config?.ASSISTED_SCRAPING_ENABLED && (
+          <div className="sm:col-span-2 flex items-center gap-2">
+            <Checkbox
+              id="assisted-scraping"
+              checked={link.assistedScraping}
+              onCheckedChange={(checked) =>
+                setLink({ ...link, assistedScraping: checked === true })
+              }
+            />
+            <label htmlFor="assisted-scraping" className="text-sm select-none">
+              {t("enable_assisted_scraping")}
+            </label>
+          </div>
+        )}
+      </div>
+      <div className="flex justify-end items-center mt-5">
         <Button variant="primary" onClick={submit}>
           {t("create_link")}
         </Button>

@@ -55,6 +55,7 @@ export default function AuthRedirect({ children }: Props) {
       { path: "/links", isProtected: true },
       { path: "/tags", isProtected: true },
       { path: "/preserved", isProtected: true },
+      { path: "/assisted-scraping", isProtected: true },
       { path: "/admin", isProtected: true },
       { path: "/search", isProtected: true },
     ];

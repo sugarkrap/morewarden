@@ -110,10 +110,10 @@ export default function PublicCollections() {
       >
         {collection && (
           <Head>
-            <title>{collection.name} | Linkwarden</title>
+            <title>{collection.name} | MoreWarden</title>
             <meta
               property="og:title"
-              content={`${collection.name} | Linkwarden`}
+              content={`${collection.name} | MoreWarden`}
               key="title"
             />
           </Head>

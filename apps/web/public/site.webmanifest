@@ -1,7 +1,7 @@
 {
   "id": "/dashboard",
-  "name":"Linkwarden",
-  "short_name":"Linkwarden",
+  "name":"MoreWarden",
+  "short_name":"MoreWarden",
   "icons":[
     {
       "src":"/android-chrome-192x192.png",

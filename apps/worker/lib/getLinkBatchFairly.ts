@@ -35,6 +35,8 @@ export default async function getLinkBatchFairly({
       : {
           url: { not: null },
           lastPreserved: null,
+          // exclude links still awaiting their assisted-scraping hook script
+          OR: [{ assistedScraping: false }, { hookScript: { not: null } }],
         };
 
   const userLinksOrderBy: Prisma.LinkOrderByWithRelationInput[] =

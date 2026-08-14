@@ -10,6 +10,8 @@ import {
   isPreservationPending,
 } from "@linkwarden/lib/formatStats";
 import PreservedFormatRow from "@/components/PreserverdFormatRow";
+import PreservedFileRow from "@/components/PreservedFileRow";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import getPublicUserData from "@/lib/client/getPublicUserData";
 import { useTranslation } from "next-i18next";
 import { BeatLoader } from "react-spinners";
@@ -495,113 +497,158 @@ export default function LinkDetails({
                   )}
               </div>
 
-              <div className={`flex flex-col rounded-md p-3 bg-base-200`}>
-                {formatAvailable(link, "monolith") ? (
+              {(() => {
+                const webpageFormats = (
                   <>
-                    <PreservedFormatRow
-                      name={t("webpage")}
-                      icon={"bi-filetype-html"}
-                      format={ArchivedFormat.monolith}
-                      link={link}
-                      downloadable={true}
-                    />
-                    <Separator className="my-3" />
+                    {formatAvailable(link, "monolith") ? (
+                      <>
+                        <PreservedFormatRow
+                          name={t("webpage")}
+                          icon={"bi-filetype-html"}
+                          format={ArchivedFormat.monolith}
+                          link={link}
+                          downloadable={true}
+                        />
+                        <Separator className="my-3" />
+                      </>
+                    ) : undefined}
+
+                    {formatAvailable(link, "image") ? (
+                      <>
+                        <PreservedFormatRow
+                          name={t("screenshot")}
+                          icon={"bi-file-earmark-image"}
+                          format={
+                            link?.image?.endsWith("png")
+                              ? ArchivedFormat.png
+                              : ArchivedFormat.jpeg
+                          }
+                          link={link}
+                          downloadable={true}
+                        />
+                        <Separator className="my-3" />
+                      </>
+                    ) : undefined}
+
+                    {formatAvailable(link, "pdf") ? (
+                      <>
+                        <PreservedFormatRow
+                          name={t("pdf")}
+                          icon={"bi-file-earmark-pdf"}
+                          format={ArchivedFormat.pdf}
+                          link={link}
+                          downloadable={true}
+                        />
+                        <Separator className="my-3" />
+                      </>
+                    ) : undefined}
+
+                    {formatAvailable(link, "readable") ? (
+                      <>
+                        <PreservedFormatRow
+                          name={t("readable")}
+                          icon={"bi-file-earmark-text"}
+                          format={ArchivedFormat.readability}
+                          link={link}
+                        />
+                        <Separator className="my-3" />
+                      </>
+                    ) : undefined}
+
+                    {!isReady() && !atLeastOneFormatAvailable(link) ? (
+                      <div
+                        className={`w-full h-full flex flex-col justify-center p-10`}
+                      >
+                        <BeatLoader
+                          color="oklch(var(--p))"
+                          className="mx-auto mb-3"
+                          size={30}
+                        />
+
+                        <p className="text-center text-xl">
+                          {t("preservation_in_queue")}
+                        </p>
+                        <p className="text-center text-lg">
+                          {t("check_back_later")}
+                        </p>
+                      </div>
+                    ) : link.url &&
+                      !isReady() &&
+                      atLeastOneFormatAvailable(link) ? (
+                      <div
+                        className={`w-full h-full flex flex-col justify-center p-5`}
+                      >
+                        <BeatLoader
+                          color="oklch(var(--p))"
+                          className="mx-auto mb-3"
+                          size={20}
+                        />
+                        <p className="text-center">
+                          {t("there_are_more_formats")}
+                        </p>
+                        <p className="text-center text-sm">
+                          {t("check_back_later")}
+                        </p>
+                      </div>
+                    ) : undefined}
+
+                    {link.url && (
+                      <Link
+                        href={`https://web.archive.org/web/${link?.url?.replace(
+                          /(^\w+:|^)\/\//,
+                          ""
+                        )}`}
+                        target="_blank"
+                        className="text-neutral mx-auto duration-100 hover:opacity-60 flex gap-2 w-1/2 justify-center items-center text-sm"
+                      >
+                        <p className="whitespace-nowrap">
+                          {t("view_latest_snapshot")}
+                        </p>
+                        <i className="bi-box-arrow-up-right" />
+                      </Link>
+                    )}
                   </>
-                ) : undefined}
+                );
 
-                {formatAvailable(link, "image") ? (
-                  <>
-                    <PreservedFormatRow
-                      name={t("screenshot")}
-                      icon={"bi-file-earmark-image"}
-                      format={
-                        link?.image?.endsWith("png")
-                          ? ArchivedFormat.png
-                          : ArchivedFormat.jpeg
-                      }
-                      link={link}
-                      downloadable={true}
-                    />
-                    <Separator className="my-3" />
-                  </>
-                ) : undefined}
+                if (!link.files?.length) {
+                  return (
+                    <div className="flex flex-col rounded-md p-3 bg-base-200">
+                      {webpageFormats}
+                    </div>
+                  );
+                }
 
-                {formatAvailable(link, "pdf") ? (
-                  <>
-                    <PreservedFormatRow
-                      name={t("pdf")}
-                      icon={"bi-file-earmark-pdf"}
-                      format={ArchivedFormat.pdf}
-                      link={link}
-                      downloadable={true}
-                    />
-                    <Separator className="my-3" />
-                  </>
-                ) : undefined}
+                return (
+                  <Tabs defaultValue="webpage" className="rounded-md bg-base-200">
+                    <TabsList className="mx-3 mt-3">
+                      <TabsTrigger value="webpage">
+                        {t("webpage_formats")}
+                      </TabsTrigger>
+                      <TabsTrigger value="files">
+                        {t("static_files")}
+                      </TabsTrigger>
+                    </TabsList>
 
-                {formatAvailable(link, "readable") ? (
-                  <>
-                    <PreservedFormatRow
-                      name={t("readable")}
-                      icon={"bi-file-earmark-text"}
-                      format={ArchivedFormat.readability}
-                      link={link}
-                    />
-                    <Separator className="my-3" />
-                  </>
-                ) : undefined}
+                    <TabsContent value="webpage" className="flex flex-col p-3">
+                      {webpageFormats}
+                    </TabsContent>
 
-                {!isReady() && !atLeastOneFormatAvailable(link) ? (
-                  <div
-                    className={`w-full h-full flex flex-col justify-center p-10`}
-                  >
-                    <BeatLoader
-                      color="oklch(var(--p))"
-                      className="mx-auto mb-3"
-                      size={30}
-                    />
-
-                    <p className="text-center text-xl">
-                      {t("preservation_in_queue")}
-                    </p>
-                    <p className="text-center text-lg">
-                      {t("check_back_later")}
-                    </p>
-                  </div>
-                ) : link.url &&
-                  !isReady() &&
-                  atLeastOneFormatAvailable(link) ? (
-                  <div
-                    className={`w-full h-full flex flex-col justify-center p-5`}
-                  >
-                    <BeatLoader
-                      color="oklch(var(--p))"
-                      className="mx-auto mb-3"
-                      size={20}
-                    />
-                    <p className="text-center">{t("there_are_more_formats")}</p>
-                    <p className="text-center text-sm">
-                      {t("check_back_later")}
-                    </p>
-                  </div>
-                ) : undefined}
-
-                {link.url && (
-                  <Link
-                    href={`https://web.archive.org/web/${link?.url?.replace(
-                      /(^\w+:|^)\/\//,
-                      ""
-                    )}`}
-                    target="_blank"
-                    className="text-neutral mx-auto duration-100 hover:opacity-60 flex gap-2 w-1/2 justify-center items-center text-sm"
-                  >
-                    <p className="whitespace-nowrap">
-                      {t("view_latest_snapshot")}
-                    </p>
-                    <i className="bi-box-arrow-up-right" />
-                  </Link>
-                )}
-              </div>
+                    <TabsContent value="files" className="flex flex-col p-3">
+                      {link.files.map((file, i) => (
+                        <React.Fragment key={file.id}>
+                          <PreservedFileRow
+                            file={file}
+                            linkId={link.id as number}
+                          />
+                          {i < link.files!.length - 1 && (
+                            <Separator className="my-3" />
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TabsContent>
+                  </Tabs>
+                );
+              })()}
             </div>
           )}
 

@@ -1,5 +1,16 @@
 import { JSDOM } from "jsdom";
 import { isUrlSafeForServerSideFetch } from "@linkwarden/lib/ssrf";
+import { safeFetch } from "@linkwarden/lib/safeFetch";
+import { FLASH_MIME_TYPE } from "@linkwarden/types/global";
+
+// monolith has no case for <embed>/<object>, so it never fetches these.
+const FLASH_ELEMENT_ATTRIBUTES: ReadonlyArray<
+  [selector: string, attribute: string]
+> = [
+  ["embed[src]", "src"],
+  ["object[data]", "data"],
+];
+const FLASH_URL_REGEX = /\.swf(?:[?#]|$)/i;
 
 // Attributes that cause monolith to fetch a remote resource at archive time.
 // `<a href>` is intentionally excluded: anchors are not fetched.
@@ -94,6 +105,85 @@ async function sanitizeCss(
 }
 
 /**
+ * page.content() is a JS string already decoded to Unicode, but it carries
+ * over the source page's original charset meta tag verbatim. monolith
+ * re-decodes its (UTF-8) stdin using whatever charset that tag declares,
+ * so a stale non-UTF-8 tag corrupts otherwise-correct text. Force both
+ * charset declaration forms to utf-8 to match the bytes actually piped in.
+ */
+function normalizeCharset(document: Document): void {
+  const metaCharset = document.querySelector("meta[charset]");
+  if (metaCharset) {
+    metaCharset.setAttribute("charset", "utf-8");
+  }
+
+  const metaHttpEquiv = document.querySelector(
+    'meta[http-equiv="Content-Type" i]'
+  );
+  if (metaHttpEquiv) {
+    metaHttpEquiv.setAttribute("content", "text/html; charset=utf-8");
+  }
+}
+
+function looksLikeFlash(element: Element, url: URL): boolean {
+  if (FLASH_URL_REGEX.test(url.pathname)) return true;
+  const type = element.getAttribute("type");
+  return type?.toLowerCase() === FLASH_MIME_TYPE;
+}
+
+export type CapturedFlashAsset = {
+  url: string;
+  buffer: Buffer;
+  mimeType: string;
+};
+
+async function captureFlashAssets(
+  document: Document,
+  baseUrl: string | undefined,
+  cache: Map<string, Promise<boolean>>
+): Promise<CapturedFlashAsset[]> {
+  const maxBytes =
+    1024 * 1024 * Number(process.env.FLASH_ARCHIVE_MAX_BUFFER_MB || 20);
+  const assets: CapturedFlashAsset[] = [];
+
+  for (const [selector, attribute] of FLASH_ELEMENT_ATTRIBUTES) {
+    for (const element of Array.from(document.querySelectorAll(selector))) {
+      const value = element.getAttribute(attribute);
+      if (!value) continue;
+
+      let absolute: URL;
+      try {
+        absolute = new URL(value.trim(), baseUrl || undefined);
+      } catch {
+        continue;
+      }
+
+      if (!looksLikeFlash(element, absolute)) continue;
+      if (!(await resolvesToSafeTarget(value, baseUrl, cache))) continue;
+
+      try {
+        const response = await safeFetch(absolute.href);
+        if (!response.ok) continue;
+
+        const buffer = Buffer.from(await response.arrayBuffer());
+        if (!buffer.length || buffer.length > maxBytes) continue;
+
+        assets.push({ url: absolute.href, buffer, mimeType: FLASH_MIME_TYPE });
+      } catch {
+        // best effort
+      }
+    }
+  }
+
+  return assets;
+}
+
+export type SanitizedMonolithHtml = {
+  html: string;
+  flashAssets: CapturedFlashAsset[];
+};
+
+/**
  * Removes references to private/internal resources from rendered page HTML
  * before it is handed to the `monolith` binary.
  *
@@ -106,10 +196,12 @@ async function sanitizeCss(
 export default async function sanitizeHtmlForMonolith(
   html: string,
   baseUrl?: string | null
-): Promise<string> {
+): Promise<SanitizedMonolithHtml> {
   const dom = new JSDOM(html, { url: baseUrl || undefined });
   const { document } = dom.window;
   const cache = new Map<string, Promise<boolean>>();
+
+  normalizeCharset(document);
 
   for (const [selector, attribute] of RESOURCE_ATTRIBUTES) {
     for (const element of Array.from(document.querySelectorAll(selector))) {
@@ -174,5 +266,11 @@ export default async function sanitizeHtmlForMonolith(
     }
   }
 
-  return dom.serialize();
+  const flashAssets = await captureFlashAssets(
+    document,
+    baseUrl ?? undefined,
+    cache
+  );
+
+  return { html: dom.serialize(), flashAssets };
 }

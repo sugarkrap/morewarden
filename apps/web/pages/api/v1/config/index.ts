@@ -35,5 +35,7 @@ export const getEnvData = () => {
     REQUIRE_CC: process.env.NEXT_PUBLIC_REQUIRE_CC === "true" || null,
     MOBILE_APP_REDIRECT_ENABLED:
       process.env.NEXT_PUBLIC_MOBILE_APP_REDIRECT_ENABLED === "true" || null,
+    ASSISTED_SCRAPING_ENABLED:
+      process.env.NEXT_PUBLIC_ENABLE_ASSISTED_SCRAPING === "true" || null,
   };
 };

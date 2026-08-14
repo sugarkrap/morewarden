@@ -1,6 +1,7 @@
 import {
   Collection,
   Link,
+  LinkFile,
   Tag,
   User,
   DashboardSection,
@@ -27,6 +28,7 @@ export interface LinkIncludingShortenedCollectionAndTags
   lastPreserved?: string | Date | null;
   collectionId?: number;
   tags: Tag[];
+  files?: LinkFile[];
   pinnedBy?: {
     id: number;
   }[];
@@ -165,6 +167,8 @@ export enum ArchivedFormat {
   readability = 3,
   monolith = 4,
 }
+
+export const FLASH_MIME_TYPE = "application/x-shockwave-flash";
 
 export enum LinkType {
   url = 0,

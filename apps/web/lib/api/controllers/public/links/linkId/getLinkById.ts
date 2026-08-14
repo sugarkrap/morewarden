@@ -17,6 +17,7 @@ export default async function getLinkById(linkId: number) {
     include: {
       tags: true,
       collection: true,
+      files: true,
     },
   });
 

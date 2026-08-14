@@ -121,7 +121,12 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const { filePath } = resolvedArchive.response;
   const { file, contentType, status } = await readFile(filePath);
   res
-    .setHeader("Content-Type", contentType)
+    .setHeader(
+      "Content-Type",
+      contentType?.startsWith("text/html")
+        ? "text/html; charset=utf-8"
+        : contentType
+    )
     .setHeader("Cache-Control", "private, max-age=31536000, immutable")
     .setHeader("X-Content-Type-Options", "nosniff")
     .status(status as number);
