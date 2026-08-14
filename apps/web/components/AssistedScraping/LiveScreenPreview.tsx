@@ -5,6 +5,7 @@ type Props = {
   linkId: number;
   picking: boolean;
   onSelectorPicked: (selector: string) => void;
+  onPickingCancelled: () => void;
 };
 
 type Rect = { x: number; y: number; width: number; height: number };
@@ -16,6 +17,7 @@ export default function LiveScreenPreview({
   linkId,
   picking,
   onSelectorPicked,
+  onPickingCancelled,
 }: Props) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,8 +77,21 @@ export default function LiveScreenPreview({
   }, [ready, linkId]);
 
   useEffect(() => {
-    if (!picking) setOverlay(null);
-  }, [picking]);
+    if (!picking) {
+      setOverlay(null);
+      return;
+    }
+
+    const onDocumentMouseDown = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        onPickingCancelled();
+      }
+    };
+
+    document.addEventListener("mousedown", onDocumentMouseDown, true);
+    return () =>
+      document.removeEventListener("mousedown", onDocumentMouseDown, true);
+  }, [picking, onPickingCancelled]);
 
   const relativePosition = (e: React.MouseEvent<HTMLImageElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -140,6 +155,7 @@ export default function LiveScreenPreview({
           if (data.response?.selector) {
             onSelectorPicked(data.response.selector);
           }
+          onPickingCancelled();
         });
       return;
     }

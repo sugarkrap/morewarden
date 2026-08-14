@@ -150,6 +150,7 @@ export default function AssistedScrapingEditor() {
                 linkId={linkId}
                 picking={picking}
                 onSelectorPicked={handleSelectorPicked}
+                onPickingCancelled={() => setPicking(false)}
               />
             ) : (
               <div className="grow flex items-center justify-center bg-base-200 text-neutral">

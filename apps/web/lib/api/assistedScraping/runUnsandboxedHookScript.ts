@@ -36,6 +36,7 @@ export async function runUnsandboxedHookScript({
       error: (...a: unknown[]) => log("error", ...a),
       debug: (...a: unknown[]) => log("debug", ...a),
     },
+    Buffer,
   };
   vm.createContext(vmGlobalsSharingOuterPrototypeChains);
 
