@@ -216,7 +216,7 @@ export default async function archiveHandler(
               addFileToArchive: async (buffer: Buffer, mimeType: string) => {
                 const ext = HOOK_FILE_EXTENSIONS[mimeType] || "bin";
                 const name = `hook-file-${fileIndex + 1}.${ext}`;
-                await saveLinkFile({
+                const savedFile = await saveLinkFile({
                   linkId: link.id,
                   collectionId: link.collectionId,
                   index: fileIndex++,
@@ -225,6 +225,9 @@ export default async function archiveHandler(
                   mimeType,
                   url: link.url || "",
                 });
+                if (!savedFile) {
+                  throw new Error(`addFileToArchive: failed to save ${name}`);
+                }
                 logHook(
                   "info",
                   `addFileToArchive: saved ${name} (${buffer.length} bytes, ${mimeType})`
