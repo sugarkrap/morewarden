@@ -230,7 +230,7 @@ export default async function archiveHandler(
                 }
                 logHook(
                   "info",
-                  `addFileToArchive: saved ${name} (${buffer.length} bytes, ${mimeType})`
+                  `addFileToArchive: saved ${name} as LinkFile #${savedFile.id} for link #${link.id} (${buffer.length} bytes, ${mimeType})`
                 );
               },
             };

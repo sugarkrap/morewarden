@@ -129,6 +129,7 @@ export default async function searchLinks({
       include: {
         tags: true,
         collection: true,
+        files: true,
         pinnedBy: userId
           ? {
               where: { id: userId },
@@ -231,6 +232,7 @@ export default async function searchLinks({
     include: {
       tags: true,
       collection: true,
+      files: true,
       pinnedBy: userId
         ? {
             where: { id: userId },
