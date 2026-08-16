@@ -1,24 +1,20 @@
-// Copies the self-hosted Ruffle build into public/ruffle so it's served
-// from our own origin at /ruffle/* — see FilePreviewContent.tsx.
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE_DIR = path.join(
-  __dirname,
-  "..",
-  "node_modules",
-  "@ruffle-rs",
-  "ruffle"
-);
-const DEST_DIR = path.join(__dirname, "..", "public", "ruffle");
-const SKIP = new Set(["package.json", "README.md", "LICENSE"]);
-
-if (!fs.existsSync(SOURCE_DIR)) {
+let SOURCE_DIR;
+try {
+  SOURCE_DIR = path.dirname(
+    require.resolve("@ruffle-rs/ruffle/package.json")
+  );
+} catch {
   console.warn(
-    `[copy-ruffle] ${SOURCE_DIR} not found, skipping (is @ruffle-rs/ruffle installed?)`
+    "[copy-ruffle] @ruffle-rs/ruffle not resolvable, skipping (is it installed?)"
   );
   process.exit(0);
 }
+
+const DEST_DIR = path.join(__dirname, "..", "public", "ruffle");
+const SKIP = new Set(["package.json", "README.md", "LICENSE"]);
 
 fs.rmSync(DEST_DIR, { recursive: true, force: true });
 fs.mkdirSync(DEST_DIR, { recursive: true });

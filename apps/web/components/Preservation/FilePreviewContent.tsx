@@ -31,8 +31,6 @@ export default function FilePreviewContent() {
     );
   }
 
-  // Unlike useGetLink above, there's no /api/v1/public/... counterpart here
-  // — this one route checks public-collection access itself.
   const rawUrl = `/api/v1/links/${linkId}/files/${fileId}`;
 
   return (
@@ -49,7 +47,6 @@ export default function FilePreviewContent() {
       <div className="grow bg-black flex items-center justify-center overflow-hidden">
         {file.mimeType === FLASH_MIME_TYPE ? (
           <>
-            {/* self-hosted; auto-polyfills the <embed> below once loaded */}
             <Script src="/ruffle/ruffle.js" strategy="afterInteractive" />
             <embed
               src={rawUrl}
