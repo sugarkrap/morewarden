@@ -297,11 +297,19 @@ export default async function archiveHandler(
               },
             };
 
-            try {
-              await hooks.after(page, api);
-            } catch (err: any) {
+            if (page.isClosed()) {
               hookFailed = true;
-              logHook("error", `after() failed: ${err?.message || err}`);
+              logHook(
+                "error",
+                "after() skipped: the page closed or crashed earlier in the archiving run (likely while capturing the screenshot or PDF of a very heavy page)"
+              );
+            } else {
+              try {
+                await hooks.after(page, api);
+              } catch (err: any) {
+                hookFailed = true;
+                logHook("error", `after() failed: ${err?.message || err}`);
+              }
             }
           }
         }

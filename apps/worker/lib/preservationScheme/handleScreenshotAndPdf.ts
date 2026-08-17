@@ -16,38 +16,36 @@ const handleScreenshotAndPdf = async (
     where: { id: link.id },
   });
   if (linkExists) {
-    const processingPromises = [];
-
     if (
       archivalSettings.archiveAsScreenshot &&
       !link.image?.startsWith("archive")
     ) {
-      processingPromises.push(
-        page
-          .screenshot({ fullPage: true, type: "jpeg" })
-          .then(async (screenshot) => {
-            if (
-              Buffer.byteLength(screenshot) >
-              1024 * 1024 * Number(process.env.SCREENSHOT_MAX_BUFFER || 100)
-            )
-              return console.log(
-                "Error archiving as Screenshot: Buffer size exceeded"
-              );
+      try {
+        const screenshot = await page.screenshot({
+          fullPage: true,
+          type: "jpeg",
+        });
 
-            await createFile({
-              data: screenshot,
-              filePath: `archives/${linkExists.collectionId}/${link.id}.jpeg`,
-            });
-            await prisma.link.update({
-              where: { id: link.id },
-              data: {
-                image: archivalSettings.archiveAsScreenshot
-                  ? `archives/${linkExists.collectionId}/${link.id}.jpeg`
-                  : undefined,
-              },
-            });
-          })
-      );
+        if (
+          Buffer.byteLength(screenshot) >
+          1024 * 1024 * Number(process.env.SCREENSHOT_MAX_BUFFER || 100)
+        ) {
+          console.log("Error archiving as Screenshot: Buffer size exceeded");
+        } else {
+          await createFile({
+            data: screenshot,
+            filePath: `archives/${linkExists.collectionId}/${link.id}.jpeg`,
+          });
+          await prisma.link.update({
+            where: { id: link.id },
+            data: {
+              image: `archives/${linkExists.collectionId}/${link.id}.jpeg`,
+            },
+          });
+        }
+      } catch (err) {
+        console.log("Error archiving as Screenshot:", err);
+      }
     }
 
     const margins = {
@@ -55,41 +53,40 @@ const handleScreenshotAndPdf = async (
       bottom: process.env.PDF_MARGIN_BOTTOM || "15px",
     };
 
-    if (archivalSettings.archiveAsPDF && !link.pdf?.startsWith("archive")) {
-      processingPromises.push(
-        page
-          .pdf({
-            width: "1366px",
-            height: "1931px",
-            printBackground: true,
-            margin: margins,
-          })
-          .then(async (pdf) => {
-            if (
-              Buffer.byteLength(pdf) >
-              1024 * 1024 * Number(process.env.PDF_MAX_BUFFER || 100)
-            )
-              return console.log(
-                "Error archiving as PDF: Buffer size exceeded"
-              );
+    if (
+      archivalSettings.archiveAsPDF &&
+      !link.pdf?.startsWith("archive") &&
+      !page.isClosed()
+    ) {
+      try {
+        const pdf = await page.pdf({
+          width: "1366px",
+          height: "1931px",
+          printBackground: true,
+          margin: margins,
+        });
 
-            await createFile({
-              data: pdf,
-              filePath: `archives/${linkExists.collectionId}/${link.id}.pdf`,
-            });
-
-            await prisma.link.update({
-              where: { id: link.id },
-              data: {
-                pdf: archivalSettings.archiveAsPDF
-                  ? `archives/${linkExists.collectionId}/${link.id}.pdf`
-                  : undefined,
-              },
-            });
-          })
-      );
+        if (
+          Buffer.byteLength(pdf) >
+          1024 * 1024 * Number(process.env.PDF_MAX_BUFFER || 100)
+        ) {
+          console.log("Error archiving as PDF: Buffer size exceeded");
+        } else {
+          await createFile({
+            data: pdf,
+            filePath: `archives/${linkExists.collectionId}/${link.id}.pdf`,
+          });
+          await prisma.link.update({
+            where: { id: link.id },
+            data: {
+              pdf: `archives/${linkExists.collectionId}/${link.id}.pdf`,
+            },
+          });
+        }
+      } catch (err) {
+        console.log("Error archiving as PDF:", err);
+      }
     }
-    await Promise.allSettled(processingPromises);
   }
 };
 
