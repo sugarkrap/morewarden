@@ -7,6 +7,10 @@ import {
   pushLog,
 } from "@/lib/api/assistedScraping/liveSessionStore";
 import { loadUnsandboxedHookScript } from "@linkwarden/lib/runUnsandboxedHookScript";
+import { safeFetch } from "@linkwarden/lib/safeFetch";
+
+const BROWSER_LIKE_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 const DryRunSchema = z.object({
   script: z.string().trim().min(1).max(100_000),
@@ -64,6 +68,21 @@ export default async function handler(
           filename || "(auto)"
         }, size=${size} bytes (not saved)`
       );
+    },
+    fetchUrl: async (url: string) => {
+      const response = await safeFetch(url, {
+        headers: {
+          "User-Agent": BROWSER_LIKE_USER_AGENT,
+          Referer: session.activePage.url(),
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`fetchUrl: ${response.status} ${response.statusText}`);
+      }
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      log("info", `fetchUrl: downloaded ${buffer.length} bytes from ${url}`);
+      return buffer;
     },
   };
 

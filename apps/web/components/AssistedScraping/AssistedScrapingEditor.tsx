@@ -23,7 +23,10 @@ const STUB_SCRIPT = `async function before(context) {
 
 async function after(page, api) {
   // Runs after the page has been scraped. \`page\` is the Playwright Page.
-  // \`api\` exposes our own helpers, e.g.:
+  // \`api\` exposes our own helpers, e.g. to download a large file directly
+  // (fetched server-side, not inside the page, so it's fast and safe even
+  // for large files):
+  //   const buffer = await api.fetchUrl(someUrl);
   //   await api.addFileToArchive(buffer, "application/x-shockwave-flash", "game.swf");
 }
 `;

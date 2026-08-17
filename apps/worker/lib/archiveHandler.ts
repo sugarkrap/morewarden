@@ -21,6 +21,10 @@ import {
 import protectPageRequests from "@linkwarden/lib/protectPageRequests";
 import { loadUnsandboxedHookScript } from "@linkwarden/lib/runUnsandboxedHookScript";
 import { saveLinkFile } from "@linkwarden/lib/saveLinkFile";
+import { safeFetch } from "@linkwarden/lib/safeFetch";
+
+const BROWSER_LIKE_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
 
 const HOOK_FILE_EXTENSIONS: Record<string, string> = {
   "application/x-shockwave-flash": "swf",
@@ -242,6 +246,26 @@ export default async function archiveHandler(
                   "info",
                   `addFileToArchive: saved ${name} as LinkFile #${savedFile.id} for link #${link.id} (${buffer.length} bytes, ${mimeType})`
                 );
+              },
+              fetchUrl: async (url: string) => {
+                const response = await safeFetch(url, {
+                  headers: {
+                    "User-Agent": BROWSER_LIKE_USER_AGENT,
+                    Referer: link.url || "",
+                  },
+                });
+                if (!response.ok) {
+                  throw new Error(
+                    `fetchUrl: ${response.status} ${response.statusText}`
+                  );
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                const buffer = Buffer.from(arrayBuffer);
+                logHook(
+                  "info",
+                  `fetchUrl: downloaded ${buffer.length} bytes from ${url}`
+                );
+                return buffer;
               },
             };
 
