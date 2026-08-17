@@ -17,7 +17,11 @@ import getPublicUserData from "@/lib/client/getPublicUserData";
 import { useTranslation } from "next-i18next";
 import { BeatLoader } from "react-spinners";
 import { useUser } from "@linkwarden/router/user";
-import { useUpdateLink, useUpdateFile } from "@linkwarden/router/links";
+import {
+  useUpdateLink,
+  useUpdateFile,
+  useUpdateArchive,
+} from "@linkwarden/router/links";
 import { useScripts } from "@linkwarden/router/scripts";
 import { useQueryClient } from "@tanstack/react-query";
 import LinkIcon from "./LinkViews/LinkComponents/LinkIcon";
@@ -116,6 +120,7 @@ export default function LinkDetails({
 
   const { data: scripts = [] } = useScripts();
   const queryClient = useQueryClient();
+  const updateArchive = useUpdateArchive();
   const [scriptActionPending, setScriptActionPending] = useState(false);
   const scrapingStatus = getAssistedScrapingStatus(link);
 
@@ -140,9 +145,14 @@ export default function LinkDetails({
         hookScriptFailed: data.response.hookScriptFailed,
         hookScriptLog: data.response.hookScriptLog,
       }));
-      queryClient.invalidateQueries({ queryKey: ["link", link.id] });
-      queryClient.invalidateQueries({ queryKey: ["links"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+
+      if (hookScript) {
+        await updateArchive.mutateAsync(link.id);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["link", link.id] });
+        queryClient.invalidateQueries({ queryKey: ["links"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -692,11 +702,11 @@ export default function LinkDetails({
                       </TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="webpage" className="flex flex-col p-3">
+                    <TabsContent value="webpage" className="flex flex-col p-3 mt-0">
                       {webpageFormats}
                     </TabsContent>
 
-                    <TabsContent value="files" className="flex flex-col p-3">
+                    <TabsContent value="files" className="flex flex-col p-3 mt-0">
                       {link.files.map((file, i) => (
                         <React.Fragment key={file.id}>
                           <PreservedFileRow

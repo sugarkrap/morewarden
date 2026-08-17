@@ -1,5 +1,6 @@
 import React from "react";
 import Script from "next/script";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
 import { useGetLink } from "@linkwarden/router/links";
@@ -36,7 +37,14 @@ export default function FilePreviewContent() {
   return (
     <div className="flex flex-col h-[calc(100vh-3.1rem)] mt-[3.1rem]">
       <div className="flex justify-between items-center gap-2 p-2 border-b border-neutral-content bg-base-200">
-        <p className="truncate text-sm pl-2">{file.name}</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/dashboard">
+              <i className="bi-chevron-left text-lg text-neutral" />
+            </Link>
+          </Button>
+          <p className="truncate text-sm">{file.name}</p>
+        </div>
         <Button asChild variant="ghost" size="icon">
           <a href={`${rawUrl}?download=1`} download={file.name}>
             <i className="bi-cloud-arrow-down text-xl text-neutral" />
@@ -53,6 +61,7 @@ export default function FilePreviewContent() {
               type={FLASH_MIME_TYPE}
               width="100%"
               height="100%"
+              className="border border-neutral-content"
             />
           </>
         ) : (
