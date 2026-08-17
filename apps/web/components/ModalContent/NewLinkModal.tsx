@@ -108,19 +108,22 @@ export default function NewLinkModal({ onClose, initial }: Props) {
     if (link.assistedScraping) {
       const newLink = await addLink.mutateAsync(link);
 
-      if (hookScriptId !== "new") {
-        const selectedScript = scripts.find((s) => s.id === hookScriptId);
-        if (selectedScript) {
-          await fetch(`/api/v1/links/${newLink.id}/assisted-scraping`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ hookScript: selectedScript.content }),
-          });
-        }
+      if (hookScriptId === "new") {
+        onClose();
+        router.push(`/assisted-scraping/${newLink.id}`);
+        return;
+      }
+
+      const selectedScript = scripts.find((s) => s.id === hookScriptId);
+      if (selectedScript) {
+        await fetch(`/api/v1/links/${newLink.id}/assisted-scraping`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hookScript: selectedScript.content }),
+        });
       }
 
       onClose();
-      router.push(`/assisted-scraping/${newLink.id}`);
       return;
     }
 

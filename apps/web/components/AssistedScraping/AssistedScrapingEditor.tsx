@@ -48,6 +48,7 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
   const deleteScript = useDeleteScript();
 
   const [script, setScript] = useState(STUB_SCRIPT);
+  const [loadedScript, setLoadedScript] = useState<HookScript | null>(null);
   const [saving, setSaving] = useState(false);
   const [addingLink, setAddingLink] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -109,10 +110,14 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
     if (!url) return;
     setAddingLink(true);
     try {
-      const created = await createScript.mutateAsync({ content: script });
+      const scriptId =
+        loadedScript && loadedScript.content === script
+          ? loadedScript.id
+          : (await createScript.mutateAsync({ content: script })).id;
+
       router.push({
         pathname: "/dashboard",
-        query: { newLinkUrl: url, newLinkScriptId: created.id },
+        query: { newLinkUrl: url, newLinkScriptId: scriptId },
       });
     } catch (error: any) {
       toast.error(error.message);
@@ -168,11 +173,13 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
 
   const handleScriptSelected = (selected: HookScript) => {
     setScript(selected.content);
+    setLoadedScript(selected);
   };
 
   const handleScriptCreated = async (name: string) => {
     try {
-      await createScript.mutateAsync({ name, content: script });
+      const created = await createScript.mutateAsync({ name, content: script });
+      setLoadedScript(created);
       toast.success(t("saved"));
     } catch (error: any) {
       toast.error(error.message);
@@ -182,6 +189,7 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
   const handleScriptDeleted = async (id: number) => {
     try {
       await deleteScript.mutateAsync(id);
+      if (loadedScript?.id === id) setLoadedScript(null);
     } catch (error: any) {
       toast.error(error.message);
     }
