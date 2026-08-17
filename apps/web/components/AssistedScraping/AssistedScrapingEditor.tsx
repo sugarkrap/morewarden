@@ -193,11 +193,16 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
   return (
     <div className="flex flex-col h-screen">
       <div className="flex justify-between items-center gap-2 p-2 border-b border-neutral-content bg-base-200">
-        <p className="truncate pl-2">
-          {standalone
-            ? t("open_script_editor")
-            : link?.name || link?.url || t("loading")}
-        </p>
+        <div className="flex items-center gap-2 min-w-0">
+          <Button variant="ghost" size="icon" onClick={handleCancel}>
+            <i className="bi-chevron-left text-lg text-neutral" />
+          </Button>
+          <p className="truncate">
+            {standalone
+              ? t("open_script_editor")
+              : link?.name || link?.url || t("loading")}
+          </p>
+        </div>
 
         <div className="flex gap-2 shrink-0 items-center">
           <ScriptStashDropdown
@@ -206,9 +211,6 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
             onCreate={handleScriptCreated}
             onDelete={handleScriptDeleted}
           />
-          <Button variant="ghost" onClick={handleCancel}>
-            {t("cancel")}
-          </Button>
           {standalone ? (
             <Button
               variant="primary"
