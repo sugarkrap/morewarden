@@ -49,6 +49,7 @@ model User {
   collectionOrder         Int[]                 @default([])
   whitelistedUsers        WhitelistedUser[]
   accessTokens            AccessToken[]
+  hookScripts             HookScript[]
   subscriptions           Subscription?
   linksRouteTo            LinksRouteTo          @default(ORIGINAL)
   aiTaggingMethod         AiTaggingMethod       @default(DISABLED)
@@ -202,6 +203,18 @@ model Link {
   updatedAt       DateTime    @default(now()) @updatedAt
 
   @@index([collectionId])
+}
+
+model HookScript {
+  id        Int      @id @default(autoincrement())
+  name      String
+  content   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([ownerId])
 }
 
 // Standalone downloadable files discovered while archiving a link, as

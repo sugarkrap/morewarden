@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import verifyUser from "@/lib/api/verifyUser";
-import assertAssistedScrapingAccess from "@/lib/api/assistedScraping/assertAccess";
+import resolveSessionKey from "@/lib/api/assistedScraping/resolveSessionKey";
 import { closeLiveSession } from "@/lib/api/assistedScraping/liveSessionStore";
 
 export default async function handler(
@@ -14,14 +14,11 @@ export default async function handler(
     return res.status(405).json({ response: "Method not allowed" });
   }
 
-  const linkId = Number(req.query.id);
-  const link = linkId
-    ? await assertAssistedScrapingAccess(user.id, linkId)
-    : null;
-  if (!link) {
+  const resolved = await resolveSessionKey(user.id, req);
+  if (!resolved) {
     return res.status(401).json({ response: "Collection is not accessible." });
   }
 
-  await closeLiveSession(linkId);
+  await closeLiveSession(resolved.sessionKey);
   return res.status(200).json({ response: "ok" });
 }

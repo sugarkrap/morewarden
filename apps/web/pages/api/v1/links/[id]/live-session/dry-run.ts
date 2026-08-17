@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 import verifyUser from "@/lib/api/verifyUser";
-import assertAssistedScrapingAccess from "@/lib/api/assistedScraping/assertAccess";
+import resolveSessionKey from "@/lib/api/assistedScraping/resolveSessionKey";
 import {
   getLiveSession,
   pushLog,
@@ -23,15 +23,12 @@ export default async function handler(
     return res.status(405).json({ response: "Method not allowed" });
   }
 
-  const linkId = Number(req.query.id);
-  const link = linkId
-    ? await assertAssistedScrapingAccess(user.id, linkId)
-    : null;
-  if (!link) {
+  const resolved = await resolveSessionKey(user.id, req);
+  if (!resolved) {
     return res.status(401).json({ response: "Collection is not accessible." });
   }
 
-  const session = getLiveSession(linkId);
+  const session = getLiveSession(resolved.sessionKey);
   if (!session) {
     return res.status(404).json({ response: "No live session." });
   }
@@ -52,14 +49,20 @@ export default async function handler(
     );
 
   const stubbedApi = {
-    addFileToArchive: async (buffer: unknown, mimeType: string) => {
+    addFileToArchive: async (
+      buffer: unknown,
+      mimeType: string,
+      filename?: string
+    ) => {
       const size =
         buffer && typeof (buffer as any).length === "number"
           ? (buffer as any).length
           : "unknown";
       log(
         "info",
-        `[dry run] addFileToArchive stub: mimeType=${mimeType}, size=${size} bytes (not saved)`
+        `[dry run] addFileToArchive stub: mimeType=${mimeType}, filename=${
+          filename || "(auto)"
+        }, size=${size} bytes (not saved)`
       );
     },
   };

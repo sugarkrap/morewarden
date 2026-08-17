@@ -26,12 +26,13 @@ type LiveSession = {
 
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_LOGS = 500;
-const sessions = new Map<number, LiveSession>();
+const sessions = new Map<string, LiveSession>();
 
 setInterval(() => {
   const now = Date.now();
-  sessions.forEach((session, linkId) => {
-    if (now - session.lastActivity > IDLE_TIMEOUT_MS) closeLiveSession(linkId);
+  sessions.forEach((session, sessionKey) => {
+    if (now - session.lastActivity > IDLE_TIMEOUT_MS)
+      closeLiveSession(sessionKey);
   });
 }, 60_000);
 
@@ -56,8 +57,11 @@ function attachConsoleCapture(session: LiveSession, page: Page) {
   });
 }
 
-export async function getOrCreateLiveSession(linkId: number, url: string) {
-  const existing = sessions.get(linkId);
+export async function getOrCreateLiveSession(
+  sessionKey: string,
+  url: string
+) {
+  const existing = sessions.get(sessionKey);
   if (existing) {
     existing.lastActivity = Date.now();
     return existing;
@@ -88,19 +92,19 @@ export async function getOrCreateLiveSession(linkId: number, url: string) {
 
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
 
-  sessions.set(linkId, session);
+  sessions.set(sessionKey, session);
   return session;
 }
 
-export function getLiveSession(linkId: number) {
-  const session = sessions.get(linkId);
+export function getLiveSession(sessionKey: string) {
+  const session = sessions.get(sessionKey);
   if (session) session.lastActivity = Date.now();
   return session;
 }
 
-export async function closeLiveSession(linkId: number) {
-  const session = sessions.get(linkId);
+export async function closeLiveSession(sessionKey: string) {
+  const session = sessions.get(sessionKey);
   if (!session) return;
-  sessions.delete(linkId);
+  sessions.delete(sessionKey);
   await session.browser.close().catch(() => {});
 }

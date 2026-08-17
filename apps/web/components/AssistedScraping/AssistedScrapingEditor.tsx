@@ -4,9 +4,17 @@ import { useRouter } from "next/router";
 import { useTranslation } from "next-i18next";
 import toast from "react-hot-toast";
 import { useGetLink, useDeleteLink } from "@linkwarden/router/links";
+import {
+  useScripts,
+  useCreateScript,
+  useDeleteScript,
+  HookScript,
+} from "@linkwarden/router/scripts";
 import { Button } from "@/components/ui/button";
+import TextInput from "@/components/TextInput";
 import LiveScreenPreview from "./LiveScreenPreview";
 import ConsolePanel from "./ConsolePanel";
+import ScriptStashDropdown from "./ScriptStashDropdown";
 
 const STUB_SCRIPT = `async function before(context) {
   // Runs before the page is scraped. \`context\` is a Playwright
@@ -16,34 +24,55 @@ const STUB_SCRIPT = `async function before(context) {
 async function after(page, api) {
   // Runs after the page has been scraped. \`page\` is the Playwright Page.
   // \`api\` exposes our own helpers, e.g.:
-  //   await api.addFileToArchive(buffer, "application/x-shockwave-flash");
+  //   await api.addFileToArchive(buffer, "application/x-shockwave-flash", "game.swf");
 }
 `;
 
-export default function AssistedScrapingEditor() {
+type Props = {
+  standalone?: boolean;
+};
+
+export default function AssistedScrapingEditor({ standalone }: Props) {
   const router = useRouter();
   const { t } = useTranslation();
   const linkId = Number(router.query.id);
 
-  const { data: link } = useGetLink({ id: linkId, enabled: router.isReady });
+  const { data: link } = useGetLink({
+    id: linkId,
+    enabled: !standalone && router.isReady,
+  });
   const deleteLink = useDeleteLink({ toast, t });
+
+  const { data: scripts = [] } = useScripts();
+  const createScript = useCreateScript();
+  const deleteScript = useDeleteScript();
 
   const [script, setScript] = useState(STUB_SCRIPT);
   const [saving, setSaving] = useState(false);
+  const [addingLink, setAddingLink] = useState(false);
   const [picking, setPicking] = useState(false);
   const [dryRunning, setDryRunning] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
+  const [activeUrl, setActiveUrl] = useState("");
+  const [sessionId, setSessionId] = useState("");
   const editorRef = useRef<any>(null);
   const scriptLoadedFromLinkRef = useRef(false);
 
   useEffect(() => {
+    if (standalone) return;
     if (scriptLoadedFromLinkRef.current) return;
     if (!link) return;
 
     scriptLoadedFromLinkRef.current = true;
     if (link.hookScript) setScript(link.hookScript);
-  }, [link]);
+  }, [standalone, link]);
 
   const handleCancel = async () => {
+    if (standalone) {
+      router.push("/dashboard");
+      return;
+    }
+
     if (!linkId) return;
     await deleteLink.mutateAsync(linkId);
     router.push("/dashboard");
@@ -75,11 +104,35 @@ export default function AssistedScrapingEditor() {
     }
   };
 
+  const handleAddLink = async () => {
+    const url = urlInput.trim() || activeUrl;
+    if (!url) return;
+    setAddingLink(true);
+    try {
+      const created = await createScript.mutateAsync({ content: script });
+      router.push({
+        pathname: "/dashboard",
+        query: { newLinkUrl: url, newLinkScriptId: created.id },
+      });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setAddingLink(false);
+    }
+  };
+
+  const handleGo = () => {
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+    setActiveUrl(trimmed);
+    setSessionId(crypto.randomUUID());
+  };
+
   const handleDryRun = async () => {
-    if (!linkId) return;
+    if (!previewSessionId) return;
     setDryRunning(true);
     try {
-      await fetch(`/api/v1/links/${linkId}/live-session/dry-run`, {
+      await fetch(`/api/v1/links/${previewSessionId}/live-session/dry-run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ script }),
@@ -113,20 +166,62 @@ export default function AssistedScrapingEditor() {
     toast.success(t("selector_copied", { selector }));
   };
 
+  const handleScriptSelected = (selected: HookScript) => {
+    setScript(selected.content);
+  };
+
+  const handleScriptCreated = async (name: string) => {
+    try {
+      await createScript.mutateAsync({ name, content: script });
+      toast.success(t("saved"));
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleScriptDeleted = async (id: number) => {
+    try {
+      await deleteScript.mutateAsync(id);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const previewUrl = standalone ? activeUrl : link?.url;
+  const previewSessionId = standalone ? sessionId : linkId ? String(linkId) : "";
+
   return (
     <div className="flex flex-col h-screen">
       <div className="flex justify-between items-center gap-2 p-2 border-b border-neutral-content bg-base-200">
         <p className="truncate pl-2">
-          {link?.name || link?.url || t("loading")}
+          {standalone
+            ? t("open_script_editor")
+            : link?.name || link?.url || t("loading")}
         </p>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 items-center">
+          <ScriptStashDropdown
+            scripts={scripts}
+            onSelect={handleScriptSelected}
+            onCreate={handleScriptCreated}
+            onDelete={handleScriptDeleted}
+          />
           <Button variant="ghost" onClick={handleCancel}>
             {t("cancel")}
           </Button>
-          <Button variant="primary" onClick={handleSave} disabled={saving}>
-            {t("save")}
-          </Button>
+          {standalone ? (
+            <Button
+              variant="primary"
+              onClick={handleAddLink}
+              disabled={addingLink || !(urlInput.trim() || activeUrl)}
+            >
+              {t("add_a_link")}
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {t("save")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -145,7 +240,25 @@ export default function AssistedScrapingEditor() {
         </div>
 
         <div className="flex flex-col min-h-0">
-          <div className="flex justify-end p-2 border-b border-neutral-content bg-base-200">
+          <div className="flex justify-between items-center gap-2 p-2 border-b border-neutral-content bg-base-200">
+            {standalone ? (
+              <div className="flex gap-2 grow">
+                <TextInput
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleGo();
+                  }}
+                  placeholder={t("link_url_placeholder")}
+                  className="bg-base-100"
+                />
+                <Button variant="default" size="sm" onClick={handleGo}>
+                  {t("go")}
+                </Button>
+              </div>
+            ) : (
+              <div />
+            )}
             <Button
               variant={picking ? "primary" : "ghost"}
               size="sm"
@@ -156,24 +269,26 @@ export default function AssistedScrapingEditor() {
           </div>
 
           <div className="flex flex-col h-3/5 min-h-0">
-            {link?.url ? (
+            {previewUrl && previewSessionId ? (
               <LiveScreenPreview
-                linkId={linkId}
+                key={previewSessionId}
+                sessionId={previewSessionId}
+                url={previewUrl}
                 picking={picking}
                 onSelectorPicked={handleSelectorPicked}
                 onPickingCancelled={() => setPicking(false)}
               />
             ) : (
               <div className="grow flex items-center justify-center bg-base-200 text-neutral">
-                {t("loading")}
+                {standalone ? t("enter_a_url_to_preview") : t("loading")}
               </div>
             )}
           </div>
 
           <div className="h-2/5 min-h-0">
-            {link?.url && (
+            {previewUrl && previewSessionId && (
               <ConsolePanel
-                linkId={linkId}
+                sessionId={previewSessionId}
                 onDryRun={handleDryRun}
                 dryRunning={dryRunning}
               />

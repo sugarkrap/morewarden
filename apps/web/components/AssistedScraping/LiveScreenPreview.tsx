@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "next-i18next";
 
 type Props = {
-  linkId: number;
+  sessionId: string;
+  url?: string;
   picking: boolean;
   onSelectorPicked: (selector: string) => void;
   onPickingCancelled: () => void;
@@ -14,7 +15,8 @@ const SCREENSHOT_INTERVAL_MS = 400;
 const MOVE_THROTTLE_MS = 100;
 
 export default function LiveScreenPreview({
-  linkId,
+  sessionId,
+  url,
   picking,
   onSelectorPicked,
   onPickingCancelled,
@@ -31,7 +33,11 @@ export default function LiveScreenPreview({
   useEffect(() => {
     let cancelled = false;
 
-    fetch(`/api/v1/links/${linkId}/live-session/start`, { method: "POST" })
+    fetch(`/api/v1/links/${sessionId}/live-session/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    })
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json();
@@ -43,9 +49,9 @@ export default function LiveScreenPreview({
 
     return () => {
       cancelled = true;
-      fetch(`/api/v1/links/${linkId}/live-session/stop`, { method: "POST" });
+      fetch(`/api/v1/links/${sessionId}/live-session/stop`, { method: "POST" });
     };
-  }, [linkId]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!ready) return;
@@ -54,17 +60,17 @@ export default function LiveScreenPreview({
     const fetchFrame = async () => {
       try {
         const res = await fetch(
-          `/api/v1/links/${linkId}/live-session/screenshot`
+          `/api/v1/links/${sessionId}/live-session/screenshot`
         );
         if (!res.ok || cancelled) return;
 
         const blob = await res.blob();
         if (cancelled) return;
 
-        const url = URL.createObjectURL(blob);
-        if (imgRef.current) imgRef.current.src = url;
+        const frameUrl = URL.createObjectURL(blob);
+        if (imgRef.current) imgRef.current.src = frameUrl;
         if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = url;
+        objectUrlRef.current = frameUrl;
       } catch {}
     };
 
@@ -74,7 +80,7 @@ export default function LiveScreenPreview({
       cancelled = true;
       clearInterval(interval);
     };
-  }, [ready, linkId]);
+  }, [ready, sessionId]);
 
   useEffect(() => {
     if (!picking) {
@@ -110,7 +116,7 @@ export default function LiveScreenPreview({
     const { x, y, displayRect } = relativePosition(e);
 
     if (picking) {
-      fetch(`/api/v1/links/${linkId}/live-session/hover-rect`, {
+      fetch(`/api/v1/links/${sessionId}/live-session/hover-rect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ x, y }),
@@ -134,7 +140,7 @@ export default function LiveScreenPreview({
       return;
     }
 
-    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+    fetch(`/api/v1/links/${sessionId}/live-session/interact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "move", x, y }),
@@ -145,7 +151,7 @@ export default function LiveScreenPreview({
     const { x, y } = relativePosition(e);
 
     if (picking) {
-      fetch(`/api/v1/links/${linkId}/live-session/pick`, {
+      fetch(`/api/v1/links/${sessionId}/live-session/pick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ x, y }),
@@ -160,7 +166,7 @@ export default function LiveScreenPreview({
       return;
     }
 
-    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+    fetch(`/api/v1/links/${sessionId}/live-session/interact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "click", x, y }),
@@ -172,7 +178,7 @@ export default function LiveScreenPreview({
     const x = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     const y = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
 
-    fetch(`/api/v1/links/${linkId}/live-session/interact`, {
+    fetch(`/api/v1/links/${sessionId}/live-session/interact`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "scroll", x, y, deltaY: e.deltaY }),

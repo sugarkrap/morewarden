@@ -213,9 +213,19 @@ export default async function archiveHandler(
           if (hooks?.after) {
             let fileIndex = 0;
             const api = {
-              addFileToArchive: async (buffer: Buffer, mimeType: string) => {
+              addFileToArchive: async (
+                buffer: Buffer,
+                mimeType: string,
+                filename?: string
+              ) => {
                 const ext = HOOK_FILE_EXTENSIONS[mimeType] || "bin";
-                const name = `hook-file-${fileIndex + 1}.${ext}`;
+                const sanitizedFilename = filename
+                  ?.replace(/[\\/]/g, "_")
+                  .replace(/^\.+/, "")
+                  .trim()
+                  .slice(0, 200);
+                const name =
+                  sanitizedFilename || `hook-file-${fileIndex + 1}.${ext}`;
                 const savedFile = await saveLinkFile({
                   linkId: link.id,
                   collectionId: link.collectionId,

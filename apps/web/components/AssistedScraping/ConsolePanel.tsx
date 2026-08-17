@@ -12,14 +12,18 @@ type LogEntry = {
 };
 
 type Props = {
-  linkId: number;
+  sessionId: string;
   onDryRun: () => void;
   dryRunning: boolean;
 };
 
 const POLL_INTERVAL_MS = 500;
 
-export default function ConsolePanel({ linkId, onDryRun, dryRunning }: Props) {
+export default function ConsolePanel({
+  sessionId,
+  onDryRun,
+  dryRunning,
+}: Props) {
   const { t } = useTranslation();
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showPlaywright, setShowPlaywright] = useState(true);
@@ -32,7 +36,7 @@ export default function ConsolePanel({ linkId, onDryRun, dryRunning }: Props) {
     const poll = async () => {
       try {
         const res = await fetch(
-          `/api/v1/links/${linkId}/live-session/logs?since=${lastIdRef.current}`
+          `/api/v1/links/${sessionId}/live-session/logs?since=${lastIdRef.current}`
         );
         if (!res.ok || cancelled) return;
         const data = await res.json();
@@ -50,7 +54,7 @@ export default function ConsolePanel({ linkId, onDryRun, dryRunning }: Props) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [linkId]);
+  }, [sessionId]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });

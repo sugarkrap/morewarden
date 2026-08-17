@@ -30,6 +30,10 @@ import NewCollectionModal from "./ModalContent/NewCollectionModal";
 import NewTagModal from "./ModalContent/NewTagModal";
 import UploadFileModal from "./ModalContent/UploadFileModal";
 import SearchModal, { isAppleDevice } from "./ModalContent/SearchModal";
+import { useConfig } from "@linkwarden/router/config";
+import useAutoOpenNewLinkModal, {
+  NewLinkPrefill,
+} from "@/hooks/useAutoOpenNewLinkModal";
 
 export default function Sidebar({
   className,
@@ -56,11 +60,17 @@ export default function Sidebar({
 
   const [searchModal, setSearchModal] = useState(false);
   const [newLinkModal, setNewLinkModal] = useState(false);
+  const [newLinkModalPrefill, setNewLinkModalPrefill] = useState<
+    NewLinkPrefill | undefined
+  >();
   const [newCollectionModal, setNewCollectionModal] = useState(false);
   const [newTagModal, setNewTagModal] = useState(false);
   const [uploadFileModal, setUploadFileModal] = useState(false);
 
   const { data: collections } = useCollections();
+  const { data: config } = useConfig();
+
+  useAutoOpenNewLinkModal(setNewLinkModal, setNewLinkModalPrefill);
 
   const {
     data: tags = [],
@@ -272,6 +282,17 @@ export default function Sidebar({
                       <i className="bi-tag" />
                       {t("new_tag")}
                     </DropdownMenuItem>
+                    {config?.ASSISTED_SCRAPING_ENABLED && (
+                      <DropdownMenuItem
+                        onSelect={() => {
+                          closeMobileSidebar();
+                          router.push("/assisted-scraping/new");
+                        }}
+                      >
+                        <i className="bi-braces" />
+                        {t("open_script_editor")}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem
                       onSelect={() => openModal(setUploadFileModal)}
                     >
@@ -337,6 +358,17 @@ export default function Sidebar({
                       </Tooltip>
                     </TooltipProvider>
                     <DropdownMenuContent align="end">
+                      {config?.ASSISTED_SCRAPING_ENABLED && (
+                        <DropdownMenuItem
+                          onSelect={() => {
+                            closeMobileSidebar();
+                            router.push("/assisted-scraping/new");
+                          }}
+                        >
+                          <i className="bi-braces" />
+                          {t("open_script_editor")}
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem
                         onSelect={() => openModal(setUploadFileModal)}
                       >
@@ -360,7 +392,13 @@ export default function Sidebar({
               <SearchModal onClose={() => setSearchModal(false)} />
             )}
             {newLinkModal && (
-              <NewLinkModal onClose={() => setNewLinkModal(false)} />
+              <NewLinkModal
+                initial={newLinkModalPrefill}
+                onClose={() => {
+                  setNewLinkModal(false);
+                  setNewLinkModalPrefill(undefined);
+                }}
+              />
             )}
             {newCollectionModal && (
               <NewCollectionModal

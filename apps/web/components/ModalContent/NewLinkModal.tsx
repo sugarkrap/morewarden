@@ -17,16 +17,19 @@ import { Separator } from "../ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAddLink } from "@linkwarden/router/links";
 import { useConfig } from "@linkwarden/router/config";
+import { useScripts } from "@linkwarden/router/scripts";
+import { NewLinkPrefill } from "@/hooks/useAutoOpenNewLinkModal";
 
 type Props = {
   onClose: () => void;
+  initial?: NewLinkPrefill;
 };
 
-export default function NewLinkModal({ onClose }: Props) {
+export default function NewLinkModal({ onClose, initial }: Props) {
   const { t } = useTranslation();
-  const initial = {
+  const defaultLink = {
     name: "",
-    url: "",
+    url: initial?.url || "",
     description: "",
     type: "url",
     tags: [],
@@ -34,7 +37,7 @@ export default function NewLinkModal({ onClose }: Props) {
       id: undefined,
       name: "",
     },
-    assistedScraping: false,
+    assistedScraping: initial?.assistedScraping ?? false,
   } as PostLinkSchemaType;
 
   const addLink = useAddLink({
@@ -42,9 +45,13 @@ export default function NewLinkModal({ onClose }: Props) {
     t,
   });
   const { data: config } = useConfig();
+  const { data: scripts = [] } = useScripts();
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [link, setLink] = useState<PostLinkSchemaType>(initial);
+  const [link, setLink] = useState<PostLinkSchemaType>(defaultLink);
+  const [hookScriptId, setHookScriptId] = useState<number | "new">(
+    initial?.hookScriptId ?? "new"
+  );
   const router = useRouter();
   const { data: collections = [] } = useCollections();
 
@@ -71,7 +78,7 @@ export default function NewLinkModal({ onClose }: Props) {
 
       if (currentCollection && currentCollection.ownerId)
         setLink({
-          ...initial,
+          ...defaultLink,
           collection: {
             id: currentCollection.id,
             name: currentCollection.name,
@@ -79,7 +86,7 @@ export default function NewLinkModal({ onClose }: Props) {
         });
     } else
       setLink({
-        ...initial,
+        ...defaultLink,
         collection: { name: "Unorganized" },
       });
   }, []);
@@ -100,6 +107,18 @@ export default function NewLinkModal({ onClose }: Props) {
 
     if (link.assistedScraping) {
       const newLink = await addLink.mutateAsync(link);
+
+      if (hookScriptId !== "new") {
+        const selectedScript = scripts.find((s) => s.id === hookScriptId);
+        if (selectedScript) {
+          await fetch(`/api/v1/links/${newLink.id}/assisted-scraping`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hookScript: selectedScript.content }),
+          });
+        }
+      }
+
       onClose();
       router.push(`/assisted-scraping/${newLink.id}`);
       return;
@@ -179,6 +198,27 @@ export default function NewLinkModal({ onClose }: Props) {
             <label htmlFor="assisted-scraping" className="text-sm select-none">
               {t("enable_assisted_scraping")}
             </label>
+          </div>
+        )}
+        {config?.ASSISTED_SCRAPING_ENABLED && link.assistedScraping && (
+          <div className="sm:col-span-2">
+            <p className="mb-2">{t("scraping_script")}</p>
+            <select
+              value={hookScriptId}
+              onChange={(e) =>
+                setHookScriptId(
+                  e.target.value === "new" ? "new" : Number(e.target.value)
+                )
+              }
+              className="w-full rounded-md p-2 border-neutral-content bg-base-200 focus:border-primary border-solid border outline-none duration-100"
+            >
+              <option value="new">{t("create_new_script")}</option>
+              {scripts.map((script) => (
+                <option key={script.id} value={script.id}>
+                  {script.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
       </div>

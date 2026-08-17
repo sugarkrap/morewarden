@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import verifyUser from "@/lib/api/verifyUser";
-import assertAssistedScrapingAccess from "@/lib/api/assistedScraping/assertAccess";
+import resolveSessionKey from "@/lib/api/assistedScraping/resolveSessionKey";
 import { getLiveSession } from "@/lib/api/assistedScraping/liveSessionStore";
 
 export default async function handler(
@@ -10,15 +10,12 @@ export default async function handler(
   const user = await verifyUser({ req, res });
   if (!user) return;
 
-  const linkId = Number(req.query.id);
-  const link = linkId
-    ? await assertAssistedScrapingAccess(user.id, linkId)
-    : null;
-  if (!link) {
+  const resolved = await resolveSessionKey(user.id, req);
+  if (!resolved) {
     return res.status(401).json({ response: "Collection is not accessible." });
   }
 
-  const session = getLiveSession(linkId);
+  const session = getLiveSession(resolved.sessionKey);
   if (!session) {
     return res.status(404).json({ response: "No live session." });
   }
