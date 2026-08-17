@@ -214,6 +214,34 @@ export default async function archiveHandler(
 
           const content = await page.content();
 
+          // Preview
+          if (!link.preview) await handleArchivePreview(link, page);
+
+          // Readability
+          if (archivalSettings.archiveAsReadable && !link.readable)
+            await handleReadability(content, link);
+
+          // Screenshot/PDF
+          if (
+            (archivalSettings.archiveAsScreenshot && !link.image) ||
+            (archivalSettings.archiveAsPDF && !link.pdf)
+          ) {
+            await handleScreenshotAndPdf(link, page, archivalSettings);
+          }
+
+          // Monolith
+          if (
+            archivalSettings.archiveAsMonolith &&
+            !link.monolith &&
+            link.url
+          ) {
+            await handleMonolith(link, content, abortController.signal).catch(
+              (err) => {
+                console.error(err);
+              }
+            );
+          }
+
           if (hooks?.after) {
             let fileIndex = 0;
             const api = {
@@ -275,34 +303,6 @@ export default async function archiveHandler(
               hookFailed = true;
               logHook("error", `after() failed: ${err?.message || err}`);
             }
-          }
-
-          // Preview
-          if (!link.preview) await handleArchivePreview(link, page);
-
-          // Readability
-          if (archivalSettings.archiveAsReadable && !link.readable)
-            await handleReadability(content, link);
-
-          // Screenshot/PDF
-          if (
-            (archivalSettings.archiveAsScreenshot && !link.image) ||
-            (archivalSettings.archiveAsPDF && !link.pdf)
-          ) {
-            await handleScreenshotAndPdf(link, page, archivalSettings);
-          }
-
-          // Monolith
-          if (
-            archivalSettings.archiveAsMonolith &&
-            !link.monolith &&
-            link.url
-          ) {
-            await handleMonolith(link, content, abortController.signal).catch(
-              (err) => {
-                console.error(err);
-              }
-            );
           }
         }
       })(),
