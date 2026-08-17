@@ -77,6 +77,7 @@ export default async function getDashboardData(userId: number) {
         include: {
           tags: true,
           collection: true,
+          files: true,
           pinnedBy: {
             where: { id: userId },
             select: { id: true },
@@ -98,6 +99,7 @@ export default async function getDashboardData(userId: number) {
         include: {
           tags: true,
           collection: true,
+          files: true,
           pinnedBy: {
             where: { id: userId },
             select: { id: true },
@@ -129,6 +131,7 @@ export default async function getDashboardData(userId: number) {
         include: {
           tags: true,
           collection: true,
+          files: true,
           pinnedBy: {
             where: { id: userId },
             select: { id: true },

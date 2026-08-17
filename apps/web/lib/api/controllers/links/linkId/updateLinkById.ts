@@ -183,6 +183,7 @@ export default async function updateLinkById(
       include: {
         tags: true,
         collection: true,
+        files: true,
         pinnedBy: isCollectionOwner
           ? {
               where: { id: userId },
