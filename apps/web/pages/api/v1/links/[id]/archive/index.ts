@@ -5,6 +5,7 @@ import isValidUrl from "@/lib/shared/isValidUrl";
 import { UsersAndCollections } from "@linkwarden/prisma/client";
 import getPermission from "@/lib/api/getPermission";
 import { removeFiles } from "@linkwarden/filesystem";
+import { removeLinkFiles } from "@linkwarden/lib/removeLinkFiles";
 
 export default async function links(req: NextApiRequest, res: NextApiResponse) {
   const user = await verifyUser({ req, res });
@@ -65,6 +66,7 @@ export default async function links(req: NextApiRequest, res: NextApiResponse) {
     });
 
     await removeFiles(link.id, link.collection.id);
+    await removeLinkFiles(link.id);
 
     return res.status(200).json({
       response: "Link is being archived.",
