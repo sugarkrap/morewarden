@@ -6,7 +6,7 @@ import verifyToken from "@/lib/api/verifyToken";
 export const config = {
   api: {
     bodyParser: false,
-    responseLimit: "50mb",
+    responseLimit: false,
   },
 };
 
