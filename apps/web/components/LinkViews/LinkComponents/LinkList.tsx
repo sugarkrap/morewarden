@@ -15,6 +15,7 @@ import useLocalSettingsStore from "@/store/localSettings";
 import LinkPin from "./LinkPin";
 import { atLeastOneFormatAvailable } from "@linkwarden/lib/formatStats";
 import LinkFormats from "./LinkFormats";
+import AssistedScrapingStatusBadge from "./AssistedScrapingStatusBadge";
 import openLink from "@/lib/client/openLink";
 import { useDraggable } from "@dnd-kit/core";
 import { TFunction } from "i18next";
@@ -99,7 +100,7 @@ function LinkList({
 
           <div className="w-[calc(100%-56px)] ml-2">
             {show.name && (
-              <div className="flex gap-1 mr-20">
+              <div className="flex gap-1 items-center mr-20">
                 <p className="truncate text-primary">
                   {unescapeString(link.name)}
                 </p>
@@ -110,6 +111,7 @@ function LinkList({
                       <LinkFormats link={link} />
                     </div>
                   )}
+                <AssistedScrapingStatusBadge link={link} />
               </div>
             )}
 

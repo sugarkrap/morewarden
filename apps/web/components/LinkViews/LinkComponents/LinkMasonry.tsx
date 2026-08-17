@@ -21,6 +21,7 @@ import useLocalSettingsStore from "@/store/localSettings";
 import clsx from "clsx";
 import LinkPin from "./LinkPin";
 import LinkFormats from "./LinkFormats";
+import AssistedScrapingStatusBadge from "./AssistedScrapingStatusBadge";
 import openLink from "@/lib/client/openLink";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -125,6 +126,10 @@ function LinkMasonry({
                     <LinkIcon link={link} />
                   </div>
                 )}
+                <AssistedScrapingStatusBadge
+                  link={link}
+                  positionClassName="absolute top-2 left-2"
+                />
               </div>
 
               <Separator />

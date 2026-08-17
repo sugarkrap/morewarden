@@ -19,6 +19,7 @@ import LinkTypeBadge from "./LinkTypeBadge";
 import useLocalSettingsStore from "@/store/localSettings";
 import LinkPin from "./LinkPin";
 import LinkFormats from "./LinkFormats";
+import AssistedScrapingStatusBadge from "./AssistedScrapingStatusBadge";
 import openLink from "@/lib/client/openLink";
 import { Separator } from "@/components/ui/separator";
 import { useDraggable } from "@dnd-kit/core";
@@ -130,6 +131,10 @@ function LinkCard({
                     <LinkIcon link={link} />
                   </div>
                 )}
+                <AssistedScrapingStatusBadge
+                  link={link}
+                  positionClassName="absolute top-2 left-2"
+                />
                 {show.preserved_formats &&
                   link.type === "url" &&
                   atLeastOneFormatAvailable(link) && (

@@ -19,6 +19,18 @@ export const atLeastOneFormatAvailable = (
   );
 };
 
+export type AssistedScrapingStatus = "draft" | "queued" | "error" | "success";
+
+export const getAssistedScrapingStatus = (
+  link?: Partial<Link> | LinkIncludingShortenedCollectionAndTags | null
+): AssistedScrapingStatus | null => {
+  if (!link?.assistedScraping) return null;
+  if (!link.hookScript) return "draft";
+  if (!link.lastPreserved) return "queued";
+  if (link.archiveError || link.hookScriptFailed) return "error";
+  return "success";
+};
+
 export const isPreservationPending = (
   link?: Partial<Link> | LinkIncludingShortenedCollectionAndTags | null
 ) =>

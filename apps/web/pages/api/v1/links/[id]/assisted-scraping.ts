@@ -6,7 +6,7 @@ import verifyUser from "@/lib/api/verifyUser";
 import { z } from "zod";
 
 const SaveHookScriptSchema = z.object({
-  hookScript: z.string().trim().min(1).max(100_000),
+  hookScript: z.string().trim().min(1).max(100_000).nullable(),
 });
 
 export default async function handler(
@@ -60,7 +60,11 @@ export default async function handler(
 
   const updated = await prisma.link.update({
     where: { id: linkId },
-    data: { hookScript: dataValidation.data.hookScript },
+    data: {
+      hookScript: dataValidation.data.hookScript,
+      hookScriptFailed: false,
+      hookScriptLog: null,
+    },
   });
 
   return res.status(200).json({ response: updated });

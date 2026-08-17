@@ -8,6 +8,7 @@ import {
   atLeastOneFormatAvailable,
   formatAvailable,
   isPreservationPending,
+  getAssistedScrapingStatus,
 } from "@linkwarden/lib/formatStats";
 import PreservedFormatRow from "@/components/PreserverdFormatRow";
 import PreservedFileRow from "@/components/PreservedFileRow";
@@ -17,6 +18,8 @@ import { useTranslation } from "next-i18next";
 import { BeatLoader } from "react-spinners";
 import { useUser } from "@linkwarden/router/user";
 import { useUpdateLink, useUpdateFile } from "@linkwarden/router/links";
+import { useScripts } from "@linkwarden/router/scripts";
+import { useQueryClient } from "@tanstack/react-query";
 import LinkIcon from "./LinkViews/LinkComponents/LinkIcon";
 import CopyButton from "./CopyButton";
 import { useRouter } from "next/router";
@@ -110,6 +113,42 @@ export default function LinkDetails({
 
   const updateLink = useUpdateLink({ toast, t });
   const updateFile = useUpdateFile();
+
+  const { data: scripts = [] } = useScripts();
+  const queryClient = useQueryClient();
+  const [scriptActionPending, setScriptActionPending] = useState(false);
+  const scrapingStatus = getAssistedScrapingStatus(link);
+
+  const updateHookScript = async (hookScript: string | null) => {
+    if (!link.id) return;
+    setScriptActionPending(true);
+    try {
+      const response = await fetch(
+        `/api/v1/links/${link.id}/assisted-scraping`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hookScript }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.response);
+
+      setLink((prev) => ({
+        ...prev,
+        hookScript: data.response.hookScript,
+        hookScriptFailed: data.response.hookScriptFailed,
+        hookScriptLog: data.response.hookScriptLog,
+      }));
+      queryClient.invalidateQueries({ queryKey: ["link", link.id] });
+      queryClient.invalidateQueries({ queryKey: ["links"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setScriptActionPending(false);
+    }
+  };
 
   const submit = async (e?: any) => {
     e?.preventDefault();
@@ -571,6 +610,18 @@ export default function LinkDetails({
                         <p className="text-center text-lg">
                           {t("check_back_later")}
                         </p>
+                        {scrapingStatus === "queued" &&
+                          (permissions === true || permissions?.canUpdate) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mx-auto mt-3 text-error"
+                              onClick={() => updateHookScript(null)}
+                              disabled={scriptActionPending}
+                            >
+                              {t("cancel_scraping")}
+                            </Button>
+                          )}
                       </div>
                     ) : link.url &&
                       !isReady() &&
@@ -589,6 +640,18 @@ export default function LinkDetails({
                         <p className="text-center text-sm">
                           {t("check_back_later")}
                         </p>
+                        {scrapingStatus === "queued" &&
+                          (permissions === true || permissions?.canUpdate) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mx-auto mt-3 text-error"
+                              onClick={() => updateHookScript(null)}
+                              disabled={scriptActionPending}
+                            >
+                              {t("cancel_scraping")}
+                            </Button>
+                          )}
                       </div>
                     ) : undefined}
 
@@ -649,6 +712,42 @@ export default function LinkDetails({
                   </Tabs>
                 );
               })()}
+            </div>
+          )}
+
+          {mode === "view" && link.assistedScraping && (
+            <div className="mt-3">
+              <p className="text-sm mb-2 text-neutral">
+                {t("scraping_script")}
+              </p>
+              <select
+                disabled={scriptActionPending || scrapingStatus === "queued"}
+                value={
+                  scripts.find((s) => s.content === link.hookScript)?.id ??
+                  (link.hookScript ? "custom" : "none")
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "custom") return;
+                  if (value === "none") return updateHookScript(null);
+                  const selected = scripts.find(
+                    (s) => s.id === Number(value)
+                  );
+                  if (selected) updateHookScript(selected.content);
+                }}
+                className="w-full rounded-md p-2 border-neutral-content bg-base-200 focus:border-primary border-solid border outline-none duration-100 disabled:opacity-50"
+              >
+                <option value="none">{t("no_script_assigned")}</option>
+                {link.hookScript &&
+                  !scripts.some((s) => s.content === link.hookScript) && (
+                    <option value="custom">{t("custom_script")}</option>
+                  )}
+                {scripts.map((script) => (
+                  <option key={script.id} value={script.id}>
+                    {script.name}
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 
