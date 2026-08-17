@@ -317,7 +317,7 @@
   "saved_scripts": "Saved scripts",
   "no_saved_scripts": "No saved scripts yet.",
   "script_name_placeholder": "Script name",
-  "save_as_new_script": "Save as new script",
+  "save_as": "Save as…",
   "add_a_link": "Add a link",
   "go": "Go",
   "enter_a_url_to_preview": "Enter a URL above and click Go to start a preview.",

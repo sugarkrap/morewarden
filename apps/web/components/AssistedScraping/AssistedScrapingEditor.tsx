@@ -7,6 +7,7 @@ import { useGetLink, useDeleteLink } from "@linkwarden/router/links";
 import {
   useScripts,
   useCreateScript,
+  useUpdateScript,
   useDeleteScript,
   HookScript,
 } from "@linkwarden/router/scripts";
@@ -14,7 +15,9 @@ import { Button } from "@/components/ui/button";
 import TextInput from "@/components/TextInput";
 import LiveScreenPreview from "./LiveScreenPreview";
 import ConsolePanel from "./ConsolePanel";
-import ScriptStashDropdown from "./ScriptStashDropdown";
+import ScriptStashDropdown, {
+  ScriptStashDropdownHandle,
+} from "./ScriptStashDropdown";
 
 const STUB_SCRIPT = `async function before(context) {
   // Runs before the page is scraped. \`context\` is a Playwright
@@ -48,10 +51,12 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
 
   const { data: scripts = [] } = useScripts();
   const createScript = useCreateScript();
+  const updateScript = useUpdateScript();
   const deleteScript = useDeleteScript();
 
   const [script, setScript] = useState(STUB_SCRIPT);
   const [loadedScript, setLoadedScript] = useState<HookScript | null>(null);
+  const [savingScript, setSavingScript] = useState(false);
   const [saving, setSaving] = useState(false);
   const [addingLink, setAddingLink] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -61,6 +66,7 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
   const [sessionId, setSessionId] = useState("");
   const editorRef = useRef<any>(null);
   const scriptLoadedFromLinkRef = useRef(false);
+  const stashDropdownRef = useRef<ScriptStashDropdownHandle>(null);
 
   useEffect(() => {
     if (standalone) return;
@@ -70,6 +76,14 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
     scriptLoadedFromLinkRef.current = true;
     if (link.hookScript) setScript(link.hookScript);
   }, [standalone, link]);
+
+  useEffect(() => {
+    if (loadedScript) return;
+    if (!link?.hookScript || scripts.length === 0) return;
+
+    const matched = scripts.find((s) => s.content === link.hookScript);
+    if (matched) setLoadedScript(matched);
+  }, [link?.hookScript, scripts, loadedScript]);
 
   const handleCancel = async () => {
     if (standalone) {
@@ -189,6 +203,27 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
     }
   };
 
+  const handleSaveScript = async () => {
+    if (!loadedScript) {
+      stashDropdownRef.current?.openSaveAs();
+      return;
+    }
+
+    setSavingScript(true);
+    try {
+      const updated = await updateScript.mutateAsync({
+        id: loadedScript.id,
+        content: script,
+      });
+      setLoadedScript(updated);
+      toast.success(t("saved"));
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setSavingScript(false);
+    }
+  };
+
   const handleScriptDeleted = async (id: number) => {
     try {
       await deleteScript.mutateAsync(id);
@@ -217,11 +252,24 @@ export default function AssistedScrapingEditor({ standalone }: Props) {
 
         <div className="flex gap-2 shrink-0 items-center">
           <ScriptStashDropdown
+            ref={stashDropdownRef}
             scripts={scripts}
             onSelect={handleScriptSelected}
             onCreate={handleScriptCreated}
             onDelete={handleScriptDeleted}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSaveScript}
+            disabled={
+              savingScript ||
+              !script.trim() ||
+              (loadedScript ? loadedScript.content === script : false)
+            }
+          >
+            {loadedScript ? t("save") : t("save_as")}
+          </Button>
           {standalone ? (
             <Button
               variant="primary"

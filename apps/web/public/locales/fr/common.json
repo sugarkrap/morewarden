@@ -317,7 +317,7 @@
   "saved_scripts": "Scripts enregistrés",
   "no_saved_scripts": "Aucun script enregistré.",
   "script_name_placeholder": "Nom du script",
-  "save_as_new_script": "Enregistrer comme nouveau script",
+  "save_as": "Enregistrer sous…",
   "add_a_link": "Ajouter un lien",
   "go": "Go",
   "enter_a_url_to_preview": "Entrez une URL ci-dessus et cliquez sur Go pour démarrer un aperçu.",
