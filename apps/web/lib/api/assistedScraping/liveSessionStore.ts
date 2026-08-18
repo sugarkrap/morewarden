@@ -71,7 +71,14 @@ export async function getOrCreateLiveSession(
 
   const browser = await launchBrowser();
   const context = await browser.newContext(getDefaultContextOptions());
-  await protectPageRequests(context);
+
+  let sessionAwaitingItsLogs: LiveSession | undefined;
+  await protectPageRequests(context, (message) => {
+    if (sessionAwaitingItsLogs) {
+      pushLog(sessionAwaitingItsLogs, "playwright", "warning", message);
+    }
+  });
+
   const page = await context.newPage();
 
   const session: LiveSession = {
@@ -83,6 +90,8 @@ export async function getOrCreateLiveSession(
     nextLogId: 1,
     lastActivity: Date.now(),
   };
+
+  sessionAwaitingItsLogs = session;
 
   attachConsoleCapture(session, page);
   context.on("page", (newPage) => {

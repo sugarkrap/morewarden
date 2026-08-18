@@ -10,7 +10,24 @@ function isNonNetworkUrl(url: string) {
   );
 }
 
-export default async function protectPageRequests(context: BrowserContext) {
+function maxResourceBytesTheRendererCanAbsorb() {
+  return (
+    1024 * 1024 * Number(process.env.PAGE_RESOURCE_MAX_BUFFER_MB || 50)
+  );
+}
+
+function describeOversizedResource(url: string, bytes: number) {
+  return `Skipped a ${Math.round(
+    bytes / (1024 * 1024)
+  )}MB page resource that would have crashed the browser: ${url}`;
+}
+
+export default async function protectPageRequests(
+  context: BrowserContext,
+  onOversizedResourceSkipped?: (message: string) => void
+) {
+  const maxBytes = maxResourceBytesTheRendererCanAbsorb();
+
   await context.route("**/*", async (route: Route) => {
     const request = route.request();
 
@@ -31,6 +48,24 @@ export default async function protectPageRequests(context: BrowserContext) {
         body: request.postDataBuffer() ?? undefined,
       });
 
+      const declaredLength = Number(response.headers.get("content-length"));
+      if (declaredLength > maxBytes) {
+        onOversizedResourceSkipped?.(
+          describeOversizedResource(request.url(), declaredLength)
+        );
+        await route.abort("failed");
+        return;
+      }
+
+      const body = await response.buffer();
+      if (body.length > maxBytes) {
+        onOversizedResourceSkipped?.(
+          describeOversizedResource(request.url(), body.length)
+        );
+        await route.abort("failed");
+        return;
+      }
+
       const responseHeaders = Object.fromEntries(response.headers.entries());
       delete responseHeaders["content-encoding"];
       delete responseHeaders["content-length"];
@@ -39,7 +74,7 @@ export default async function protectPageRequests(context: BrowserContext) {
       await route.fulfill({
         status: response.status,
         headers: responseHeaders,
-        body: await response.buffer(),
+        body,
       });
     } catch (error) {
       await route.abort(

@@ -109,7 +109,9 @@ export default async function archiveHandler(
     const contextOptions = getDefaultContextOptions();
     const context = await browser.newContext(contextOptions);
     contextToClose = context;
-    await protectPageRequests(context);
+    await protectPageRequests(context, (message) =>
+      stepFailures.push(message)
+    );
     const page = await context.newPage();
 
     createFolder({ filePath: `archives/preview/${link.collectionId}` });
