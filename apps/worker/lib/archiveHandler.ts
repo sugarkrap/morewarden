@@ -214,34 +214,6 @@ export default async function archiveHandler(
 
           const content = await page.content();
 
-          // Preview
-          if (!link.preview) await handleArchivePreview(link, page);
-
-          // Readability
-          if (archivalSettings.archiveAsReadable && !link.readable)
-            await handleReadability(content, link);
-
-          // Screenshot/PDF
-          if (
-            (archivalSettings.archiveAsScreenshot && !link.image) ||
-            (archivalSettings.archiveAsPDF && !link.pdf)
-          ) {
-            await handleScreenshotAndPdf(link, page, archivalSettings);
-          }
-
-          // Monolith
-          if (
-            archivalSettings.archiveAsMonolith &&
-            !link.monolith &&
-            link.url
-          ) {
-            await handleMonolith(link, content, abortController.signal).catch(
-              (err) => {
-                console.error(err);
-              }
-            );
-          }
-
           if (hooks?.after) {
             let fileIndex = 0;
             const api = {
@@ -301,7 +273,7 @@ export default async function archiveHandler(
               hookFailed = true;
               logHook(
                 "error",
-                "after() skipped: the page closed or crashed earlier in the archiving run (likely while capturing the screenshot or PDF of a very heavy page)"
+                "after() skipped: the page closed or crashed before the hook script could run"
               );
             } else {
               try {
@@ -311,6 +283,43 @@ export default async function archiveHandler(
                 logHook("error", `after() failed: ${err?.message || err}`);
               }
             }
+          }
+
+          // Preview
+          if (!link.preview) {
+            await handleArchivePreview(link, page).catch((err) => {
+              console.error(err);
+            });
+          }
+
+          // Readability
+          if (archivalSettings.archiveAsReadable && !link.readable)
+            await handleReadability(content, link);
+
+          // Screenshot/PDF
+          if (
+            !page.isClosed() &&
+            ((archivalSettings.archiveAsScreenshot && !link.image) ||
+              (archivalSettings.archiveAsPDF && !link.pdf))
+          ) {
+            await handleScreenshotAndPdf(link, page, archivalSettings).catch(
+              (err) => {
+                console.error(err);
+              }
+            );
+          }
+
+          // Monolith
+          if (
+            archivalSettings.archiveAsMonolith &&
+            !link.monolith &&
+            link.url
+          ) {
+            await handleMonolith(link, content, abortController.signal).catch(
+              (err) => {
+                console.error(err);
+              }
+            );
           }
         }
       })(),
