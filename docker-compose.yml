@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
     restart: always
     image: ghcr.io/linkwarden/linkwarden:latest
+    shm_size: 1gb
     ports:
       - 3000:3000
     volumes:

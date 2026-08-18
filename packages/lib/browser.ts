@@ -50,6 +50,8 @@ export function getDefaultContextOptions(): BrowserContextOptions {
   return base;
 }
 
+const DOCKER_SHARED_MEMORY_ARGS = ["--disable-dev-shm-usage"];
+
 export async function launchBrowser(): Promise<Browser> {
   const browserOptions = getBrowserOptions();
 
@@ -57,5 +59,8 @@ export async function launchBrowser(): Promise<Browser> {
     return chromium.connectOverCDP(process.env.PLAYWRIGHT_WS_URL);
   }
 
-  return chromium.launch(browserOptions);
+  return chromium.launch({
+    ...browserOptions,
+    args: [...(browserOptions.args ?? []), ...DOCKER_SHARED_MEMORY_ARGS],
+  });
 }
