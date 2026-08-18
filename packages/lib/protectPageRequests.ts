@@ -24,9 +24,15 @@ function describeOversizedResource(url: string, bytes: number) {
 
 export default async function protectPageRequests(
   context: BrowserContext,
-  onOversizedResourceSkipped?: (message: string) => void
+  alsoReportOversizedResourceTo?: (message: string) => void
 ) {
   const maxBytes = maxResourceBytesTheRendererCanAbsorb();
+
+  const reportOversizedResource = (url: string, bytes: number) => {
+    const message = describeOversizedResource(url, bytes);
+    console.log(message);
+    alsoReportOversizedResourceTo?.(message);
+  };
 
   await context.route("**/*", async (route: Route) => {
     const request = route.request();
@@ -50,18 +56,14 @@ export default async function protectPageRequests(
 
       const declaredLength = Number(response.headers.get("content-length"));
       if (declaredLength > maxBytes) {
-        onOversizedResourceSkipped?.(
-          describeOversizedResource(request.url(), declaredLength)
-        );
+        reportOversizedResource(request.url(), declaredLength);
         await route.abort("failed");
         return;
       }
 
       const body = await response.buffer();
       if (body.length > maxBytes) {
-        onOversizedResourceSkipped?.(
-          describeOversizedResource(request.url(), body.length)
-        );
+        reportOversizedResource(request.url(), body.length);
         await route.abort("failed");
         return;
       }
