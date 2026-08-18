@@ -1,5 +1,30 @@
 import { safeFetch } from "@linkwarden/lib/safeFetch";
 
+function charsetFromContentType(contentType: string | null): string | null {
+  const match = contentType?.match(/charset=([^;]+)/i);
+  return match?.[1]?.trim().toLowerCase().replace(/^["']|["']$/g, "") || null;
+}
+
+function charsetFromMetaTag(bytes: Buffer): string | null {
+  const head = bytes.subarray(0, 2048).toString("latin1");
+  const match = head.match(/<meta[^>]+charset=["']?\s*([^"'\s/>]+)/i);
+  return match?.[1]?.toLowerCase() || null;
+}
+
+async function decodeHtmlResponse(response: any): Promise<string> {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  const charset =
+    charsetFromContentType(response.headers.get("content-type")) ||
+    charsetFromMetaTag(bytes) ||
+    "utf-8";
+
+  try {
+    return new TextDecoder(charset).decode(bytes);
+  } catch {
+    return new TextDecoder("utf-8").decode(bytes);
+  }
+}
+
 export default async function fetchTitleAndHeaders(
   url: string,
   content?: string
@@ -23,7 +48,7 @@ export default async function fetchTitleAndHeaders(
       if (content) {
         text = content;
       } else {
-        text = await (response as any).text();
+        text = await decodeHtmlResponse(response);
       }
 
       const headers = (response as Response | null)?.headers || null;
