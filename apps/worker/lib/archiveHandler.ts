@@ -91,6 +91,7 @@ export default async function archiveHandler(
   });
 
   let archiveError: string | null = null;
+  const stepFailures: string[] = [];
   const hookLog: string[] = [];
   let hookFailed = false;
   const logHook = (level: string, ...args: unknown[]) => {
@@ -287,8 +288,8 @@ export default async function archiveHandler(
 
           // Preview
           if (!link.preview) {
-            await handleArchivePreview(link, page).catch((err) => {
-              console.error(err);
+            await handleArchivePreview(link, page).catch((err: any) => {
+              stepFailures.push(`Preview failed: ${err?.message || err}`);
             });
           }
 
@@ -298,15 +299,22 @@ export default async function archiveHandler(
 
           // Screenshot/PDF
           if (
-            !page.isClosed() &&
-            ((archivalSettings.archiveAsScreenshot && !link.image) ||
-              (archivalSettings.archiveAsPDF && !link.pdf))
+            (archivalSettings.archiveAsScreenshot && !link.image) ||
+            (archivalSettings.archiveAsPDF && !link.pdf)
           ) {
-            await handleScreenshotAndPdf(link, page, archivalSettings).catch(
-              (err) => {
-                console.error(err);
-              }
-            );
+            if (page.isClosed()) {
+              stepFailures.push(
+                "Screenshot and PDF skipped: the page closed or crashed earlier in this run"
+              );
+            } else {
+              await handleScreenshotAndPdf(link, page, archivalSettings)
+                .then((failures) => stepFailures.push(...failures))
+                .catch((err: any) =>
+                  stepFailures.push(
+                    `Screenshot and PDF failed: ${err?.message || err}`
+                  )
+                );
+            }
           }
 
           // Monolith
@@ -316,8 +324,8 @@ export default async function archiveHandler(
             link.url
           ) {
             await handleMonolith(link, content, abortController.signal).catch(
-              (err) => {
-                console.error(err);
+              (err: any) => {
+                stepFailures.push(`Webpage failed: ${err?.message || err}`);
               }
             );
           }
@@ -339,6 +347,8 @@ export default async function archiveHandler(
       where: { id: link.id },
     });
 
+    const reportedProblems = [...(archiveError ? [archiveError] : []), ...stepFailures];
+
     if (finalLink) {
       await prisma.link.update({
         where: { id: link.id },
@@ -350,7 +360,7 @@ export default async function archiveHandler(
           pdf: !finalLink.pdf ? "unavailable" : undefined,
           preview: !finalLink.preview ? "unavailable" : undefined,
           indexVersion: null,
-          archiveError,
+          archiveError: reportedProblems.join("\n") || null,
           ...(hooks
             ? {
                 hookScriptFailed: hookFailed,

@@ -8,7 +8,9 @@ const handleScreenshotAndPdf = async (
   link: LinkWithCollectionOwnerAndTags,
   page: Page,
   archivalSettings: ArchivalSettings
-) => {
+): Promise<string[]> => {
+  const failures: string[] = [];
+
   await page.evaluate(autoScroll, Number(process.env.AUTOSCROLL_TIMEOUT) || 30);
 
   // Check if the user hasn't deleted the link by the time we're done scrolling
@@ -30,7 +32,11 @@ const handleScreenshotAndPdf = async (
           Buffer.byteLength(screenshot) >
           1024 * 1024 * Number(process.env.SCREENSHOT_MAX_BUFFER || 100)
         ) {
-          console.log("Error archiving as Screenshot: Buffer size exceeded");
+          failures.push(
+            `Screenshot skipped: it exceeded SCREENSHOT_MAX_BUFFER (${
+              process.env.SCREENSHOT_MAX_BUFFER || 100
+            }MB)`
+          );
         } else {
           await createFile({
             data: screenshot,
@@ -43,8 +49,8 @@ const handleScreenshotAndPdf = async (
             },
           });
         }
-      } catch (err) {
-        console.log("Error archiving as Screenshot:", err);
+      } catch (err: any) {
+        failures.push(`Screenshot failed: ${err?.message || err}`);
       }
     }
 
@@ -70,7 +76,11 @@ const handleScreenshotAndPdf = async (
           Buffer.byteLength(pdf) >
           1024 * 1024 * Number(process.env.PDF_MAX_BUFFER || 100)
         ) {
-          console.log("Error archiving as PDF: Buffer size exceeded");
+          failures.push(
+            `PDF skipped: it exceeded PDF_MAX_BUFFER (${
+              process.env.PDF_MAX_BUFFER || 100
+            }MB)`
+          );
         } else {
           await createFile({
             data: pdf,
@@ -83,11 +93,13 @@ const handleScreenshotAndPdf = async (
             },
           });
         }
-      } catch (err) {
-        console.log("Error archiving as PDF:", err);
+      } catch (err: any) {
+        failures.push(`PDF failed: ${err?.message || err}`);
       }
     }
   }
+
+  return failures;
 };
 
 const autoScroll = async (AUTOSCROLL_TIMEOUT: number) => {
