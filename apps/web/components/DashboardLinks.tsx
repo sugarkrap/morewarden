@@ -20,6 +20,7 @@ import { useRouter } from "next/router";
 import openLink from "@/lib/client/openLink";
 import LinkIcon from "./LinkViews/LinkComponents/LinkIcon";
 import LinkFormats from "./LinkViews/LinkComponents/LinkFormats";
+import AssistedScrapingStatusBadge from "./LinkViews/LinkComponents/AssistedScrapingStatusBadge";
 import LinkTypeBadge from "./LinkViews/LinkComponents/LinkTypeBadge";
 import LinkPin from "./LinkViews/LinkComponents/LinkPin";
 import { Separator } from "./ui/separator";
@@ -149,6 +150,10 @@ export function Card({ link, editMode, dashboardType }: Props) {
                     <LinkIcon link={link} />
                   </div>
                 )}
+                <AssistedScrapingStatusBadge
+                  link={link}
+                  positionClassName="absolute top-2 left-2"
+                />
                 {show.preserved_formats &&
                   link.type === "url" &&
                   atLeastOneFormatAvailable(link) && (
