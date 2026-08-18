@@ -3,7 +3,6 @@ import { isUrlSafeForServerSideFetch } from "@linkwarden/lib/ssrf";
 import { safeFetch } from "@linkwarden/lib/safeFetch";
 import { FLASH_MIME_TYPE } from "@linkwarden/types/global";
 
-// monolith has no case for <embed>/<object>, so it never fetches these.
 const FLASH_ELEMENT_ATTRIBUTES: ReadonlyArray<
   [selector: string, attribute: string]
 > = [
@@ -104,14 +103,7 @@ async function sanitizeCss(
   return result;
 }
 
-/**
- * page.content() is a JS string already decoded to Unicode, but it carries
- * over the source page's original charset meta tag verbatim. monolith
- * re-decodes its (UTF-8) stdin using whatever charset that tag declares,
- * so a stale non-UTF-8 tag corrupts otherwise-correct text. Force both
- * charset declaration forms to utf-8 to match the bytes actually piped in.
- */
-function normalizeCharset(document: Document): void {
+function declareUtf8ToMatchTheBytesPipedToMonolith(document: Document): void {
   const metaCharset = document.querySelector("meta[charset]");
   if (metaCharset) {
     metaCharset.setAttribute("charset", "utf-8");
@@ -170,7 +162,7 @@ async function captureFlashAssets(
 
         assets.push({ url: absolute.href, buffer, mimeType: FLASH_MIME_TYPE });
       } catch {
-        // best effort
+        continue;
       }
     }
   }
@@ -201,7 +193,7 @@ export default async function sanitizeHtmlForMonolith(
   const { document } = dom.window;
   const cache = new Map<string, Promise<boolean>>();
 
-  normalizeCharset(document);
+  declareUtf8ToMatchTheBytesPipedToMonolith(document);
 
   for (const [selector, attribute] of RESOURCE_ATTRIBUTES) {
     for (const element of Array.from(document.querySelectorAll(selector))) {

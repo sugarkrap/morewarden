@@ -10,11 +10,13 @@ export const config = {
   },
 };
 
-// RFC 5987 filename*, plus a sanitized ASCII fallback to avoid header
-// injection from raw quotes/control chars in a site-supplied filename.
-function contentDispositionHeader(name: string): string {
-  const asciiFallback = name.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(
+function contentDispositionHeaderSafeAgainstHeaderInjection(
+  name: string
+): string {
+  const asciiFallbackWithoutQuotesOrControlChars = name
+    .replace(/[^\x20-\x7E]/g, "_")
+    .replace(/["\\]/g, "_");
+  return `attachment; filename="${asciiFallbackWithoutQuotesOrControlChars}"; filename*=UTF-8''${encodeURIComponent(
     name
   )}`;
 }
@@ -71,7 +73,10 @@ export default async function handler(
     .setHeader("X-Content-Type-Options", "nosniff");
 
   if (isDownload) {
-    res.setHeader("Content-Disposition", contentDispositionHeader(file.name));
+    res.setHeader(
+      "Content-Disposition",
+      contentDispositionHeaderSafeAgainstHeaderInjection(file.name)
+    );
   }
 
   return res.status(200).send(data);

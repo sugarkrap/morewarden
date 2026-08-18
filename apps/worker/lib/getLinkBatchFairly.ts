@@ -9,6 +9,11 @@ type PickLinksOptions = {
 const TRIAL_PERIOD_DAYS = process.env.NEXT_PUBLIC_TRIAL_PERIOD_DAYS || 14;
 const REQUIRE_CC = process.env.NEXT_PUBLIC_REQUIRE_CC === "true";
 
+const NOT_STILL_AWAITING_ITS_HOOK_SCRIPT: Prisma.LinkWhereInput[] = [
+  { assistedScraping: false },
+  { hookScript: { not: null } },
+];
+
 export default async function getLinkBatchFairly({
   maxBatchLinks,
   mode,
@@ -35,8 +40,7 @@ export default async function getLinkBatchFairly({
       : {
           url: { not: null },
           lastPreserved: null,
-          // exclude links still awaiting their assisted-scraping hook script
-          OR: [{ assistedScraping: false }, { hookScript: { not: null } }],
+          OR: NOT_STILL_AWAITING_ITS_HOOK_SCRIPT,
         };
 
   const userLinksOrderBy: Prisma.LinkOrderByWithRelationInput[] =
