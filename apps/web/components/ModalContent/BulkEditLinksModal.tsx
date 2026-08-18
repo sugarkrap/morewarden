@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import CollectionSelection from "@/components/InputSelect/CollectionSelection";
 import TagSelection from "@/components/InputSelect/TagSelection";
 import useLinkStore from "@/store/links";
@@ -7,14 +7,27 @@ import toast from "react-hot-toast";
 import Modal from "../Modal";
 import { useTranslation } from "next-i18next";
 import { useBulkEditLinks } from "@linkwarden/router/links";
+import { useConfig } from "@linkwarden/router/config";
+import { useScripts } from "@linkwarden/router/scripts";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const MIXED = "mixed";
+const UNCHANGED = "unchanged";
 
 type Props = {
   onClose: Function;
+  links?: LinkIncludingShortenedCollectionAndTags[];
 };
 
-export default function BulkEditLinksModal({ onClose }: Props) {
+function sharedValueAcross<T>(values: T[]): T | typeof MIXED | undefined {
+  if (values.length === 0) return undefined;
+  const [first, ...rest] = values;
+  return rest.every((value) => value === first) ? first : MIXED;
+}
+
+export default function BulkEditLinksModal({ onClose, links = [] }: Props) {
   const { t } = useTranslation();
   const { selectedIds, clearSelected, selectionCount } = useLinkStore();
   const [submitLoader, setSubmitLoader] = useState(false);
@@ -22,6 +35,46 @@ export default function BulkEditLinksModal({ onClose }: Props) {
   const [updatedValues, setUpdatedValues] = useState<
     Pick<LinkIncludingShortenedCollectionAndTags, "tags" | "collectionId">
   >({ tags: [] });
+
+  const { data: config } = useConfig();
+  const { data: scripts = [] } = useScripts();
+
+  const selectedLinks = useMemo(
+    () => links.filter((link) => link.id && selectedIds[link.id]),
+    [links, selectedIds]
+  );
+
+  const sharedAssistedScraping = useMemo(
+    () => sharedValueAcross(selectedLinks.map((link) => link.assistedScraping)),
+    [selectedLinks]
+  );
+
+  const sharedHookScript = useMemo(
+    () => sharedValueAcross(selectedLinks.map((link) => link.hookScript)),
+    [selectedLinks]
+  );
+
+  const [assistedScraping, setAssistedScraping] = useState<
+    boolean | typeof MIXED | undefined
+  >(undefined);
+  const [hookScriptChoice, setHookScriptChoice] = useState<string>(UNCHANGED);
+
+  const effectiveAssistedScraping =
+    assistedScraping === undefined ? sharedAssistedScraping : assistedScraping;
+
+  const scriptMatchingSharedContent =
+    sharedHookScript && sharedHookScript !== MIXED
+      ? scripts.find((script) => script.content === sharedHookScript)
+      : undefined;
+
+  const hookScriptSelectValue =
+    hookScriptChoice !== UNCHANGED
+      ? hookScriptChoice
+      : sharedHookScript === MIXED
+        ? MIXED
+        : scriptMatchingSharedContent
+          ? String(scriptMatchingSharedContent.id)
+          : UNCHANGED;
 
   const updateLinks = useBulkEditLinks();
   const setCollection = (e: any) => {
@@ -44,10 +97,21 @@ export default function BulkEditLinksModal({ onClose }: Props) {
         id: Number(k),
       }));
 
+      const chosenScript =
+        hookScriptChoice !== UNCHANGED && hookScriptChoice !== MIXED
+          ? scripts.find((script) => String(script.id) === hookScriptChoice)
+          : undefined;
+
       await updateLinks.mutateAsync(
         {
           links,
-          newData: updatedValues,
+          newData: {
+            ...updatedValues,
+            ...(typeof assistedScraping === "boolean"
+              ? { assistedScraping }
+              : {}),
+            ...(chosenScript ? { hookScript: chosenScript.content } : {}),
+          },
           removePreviousTags,
         },
         {
@@ -104,6 +168,56 @@ export default function BulkEditLinksModal({ onClose }: Props) {
             {t("remove_previous_tags")}
           </label>
         </div>
+
+        {config?.ASSISTED_SCRAPING_ENABLED && (
+          <>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="bulk-assisted-scraping"
+                checked={
+                  effectiveAssistedScraping === MIXED
+                    ? "indeterminate"
+                    : effectiveAssistedScraping === true
+                }
+                onCheckedChange={(checked) =>
+                  setAssistedScraping(checked === true)
+                }
+              />
+              <label
+                htmlFor="bulk-assisted-scraping"
+                className="text-sm select-none"
+              >
+                {t("enable_assisted_scraping")}
+              </label>
+            </div>
+
+            {effectiveAssistedScraping !== false && (
+              <div className="mt-3">
+                <p className="mb-2">{t("scraping_script")}</p>
+                <select
+                  value={hookScriptSelectValue}
+                  onChange={(e) => setHookScriptChoice(e.target.value)}
+                  className={`w-full rounded-md p-2 border-neutral-content bg-base-200 focus:border-primary border-solid border outline-none duration-100 ${
+                    hookScriptSelectValue === MIXED ||
+                    hookScriptSelectValue === UNCHANGED
+                      ? "text-neutral"
+                      : ""
+                  }`}
+                >
+                  {hookScriptSelectValue === MIXED && (
+                    <option value={MIXED}>{t("multiple_scripts")}</option>
+                  )}
+                  <option value={UNCHANGED}>{t("leave_unchanged")}</option>
+                  {scripts.map((script) => (
+                    <option key={script.id} value={script.id}>
+                      {script.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="flex justify-end items-center mt-5">

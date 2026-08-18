@@ -10,9 +10,22 @@ export default async function updateLinks(
   newData: Pick<
     LinkIncludingShortenedCollectionAndTags,
     "tags" | "collectionId"
-  >
+  > & {
+    assistedScraping?: boolean;
+    hookScript?: string;
+  }
 ) {
   let allUpdatesSuccessful = true;
+
+  const assistedScrapingIsEnabledOnThisInstance =
+    process.env.NEXT_PUBLIC_ENABLE_ASSISTED_SCRAPING === "true";
+
+  const acceptedHookScript =
+    typeof newData.hookScript === "string" &&
+    newData.hookScript.trim().length > 0 &&
+    newData.hookScript.length <= 100_000
+      ? newData.hookScript
+      : undefined;
 
   const ids = links.map((l) => l.id);
 
@@ -58,6 +71,30 @@ export default async function updateLinks(
 
     if (updatedLink.status !== 200) {
       allUpdatesSuccessful = false;
+      continue;
+    }
+
+    const assistedScrapingChanges = {
+      ...(typeof newData.assistedScraping === "boolean"
+        ? { assistedScraping: newData.assistedScraping }
+        : {}),
+      ...(acceptedHookScript
+        ? {
+            hookScript: acceptedHookScript,
+            hookScriptFailed: false,
+            hookScriptLog: null,
+          }
+        : {}),
+    };
+
+    if (
+      assistedScrapingIsEnabledOnThisInstance &&
+      Object.keys(assistedScrapingChanges).length > 0
+    ) {
+      await prisma.link.update({
+        where: { id: link.id },
+        data: assistedScrapingChanges,
+      });
     }
   }
 

@@ -230,7 +230,10 @@ const Page: NextPageWithLayout = () => {
         <BulkDeleteLinksModal onClose={() => setBulkDeleteLinksModal(false)} />
       )}
       {bulkEditLinksModal && (
-        <BulkEditLinksModal onClose={() => setBulkEditLinksModal(false)} />
+        <BulkEditLinksModal
+          links={links}
+          onClose={() => setBulkEditLinksModal(false)}
+        />
       )}
     </div>
   );

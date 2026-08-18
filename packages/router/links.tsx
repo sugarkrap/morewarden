@@ -1105,7 +1105,10 @@ const useBulkEditLinks = () => {
       newData: Pick<
         LinkIncludingShortenedCollectionAndTags,
         "tags" | "collectionId"
-      >;
+      > & {
+        assistedScraping?: boolean;
+        hookScript?: string;
+      };
       removePreviousTags: boolean;
     }) => {
       const response = await fetch("/api/v1/links", {

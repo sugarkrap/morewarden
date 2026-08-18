@@ -245,6 +245,7 @@ const LinkListOptions = ({
 
       {bulkEditLinksModal && (
         <BulkEditLinksModal
+          links={links}
           onClose={() => {
             setBulkEditLinksModal(false);
             setEditMode?.(false);

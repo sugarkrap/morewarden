@@ -312,6 +312,8 @@
   "link_description_placeholder": "Notes, réflexions, etc.",
   "enable_assisted_scraping": "Activer le scraping assisté",
   "scraping_script": "Script de scraping",
+  "multiple_scripts": "Plusieurs scripts",
+  "leave_unchanged": "Laisser inchangé",
   "create_new_script": "Créer un nouveau script",
   "open_script_editor": "Ouvrir l’éditeur de script",
   "saved_scripts": "Scripts enregistrés",
